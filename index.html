@@ -731,6 +731,7 @@ input,select,textarea{width:100%;height:46px;border-radius:10px;border:1px solid
 .bigmic.on{background:linear-gradient(#ff6b5a,#c0392b);color:#fff;border-color:#fff;animation:p 1s infinite}
 .res{padding:14px;border-radius:14px;background:var(--card);border:2px solid var(--gold);margin:10px 0}
 .res .nm{font-size:19px;font-weight:800;color:var(--gold)}.res .qc{color:var(--tx);margin-top:2px}.res .sl{font-size:28px;font-weight:800;color:#fff;margin-top:6px}
+.res.alt{border-color:var(--bd)}.why{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}.why span{font-size:13px;padding:2px 8px;border-radius:8px}.why .ok{background:#1f8a6333;color:#4ee6b0}.why .no{background:#ff9d3c22;color:#ff9d3c}
 .res .warn{color:#ff9d3c;font-size:14px;margin-top:6px}
 details summary{margin-top:14px;color:var(--sub);font-size:15px;padding:8px 0}
 #undo{position:fixed;left:10px;right:10px;bottom:calc(14px + env(safe-area-inset-bottom));background:#0b1d3a;border:2px solid var(--ok);border-radius:14px;padding:12px;display:none;align-items:center;gap:10px;z-index:1400;color:#fff;font-size:15px}
@@ -931,31 +932,41 @@ function openSpec(id){const m=PKG.danhmuc.muc.find(x=>x.id===id);const all=PKG.d
 function dkShort(d){return d[0]===0?'< '+d[1]+' cm':(d[1]==null?'≥ '+d[0]+' cm':d[0]+' – '+d[1]+' cm')}
 // ===== Nói / gõ → nhận dạng theo bảng đơn giá =====
 const NW={khong:0,mot:1,hai:2,ba:3,bon:4,tu:4,nam:5,lam:5,sau:6,bay:7,tam:8,chin:9,muoi:10,muoi:10};
-function wordsToNum(s){ // "ba muoi lam" -> 35, "muoi hai" -> 12, "hai tram" -> 200
- const t=s.split(' ');const out=[];let i=0;
- while(i<t.length){let w=t[i];if(!(w in NW)&&w!=='tram'&&w!=='mot'){out.push(w);i++;continue}
-  let v=0,cur=0,used=0;
-  while(i<t.length){w=t[i];
-   if(w==='tram'){cur=(cur||1)*100;v+=cur;cur=0}
-   else if(w==='muoi'&&(t[i-1] in NW)&&used&&t[i-1]!=='muoi'){cur=cur*10}
-   else if(w==='muoi'){cur+=10}
-   else if(w==='mot'&&used&&cur>=10){cur+=1}
-   else if(w in NW){if(cur%10!==0||(cur>0&&cur<10))break;cur+=NW[w]}
-   else break;used++;i++}
-  out.push(String(v+cur))}
+const NUMMARK=new Set(['luong','sl','kinh','dk','phi','vanh','cao','dai','rong','tich','x','nhan','gom','tong','thuoc','day','sau_']);
+const NUMUNIT=new Set(['nhan','x','cay','khom','bui','met','m','cm','ngoi','cai','gian','kg','khoi','phan','tang','md','goc','truc','gieng']);
+function runVals(t){ // tách 1 cụm chữ số thành các số: "hai muoi mot bay" -> [21,7]
+ const out=[];let v=0,cur=0,has=false;const flush=()=>{if(has)out.push(v+cur);v=0;cur=0;has=false};
+ for(let i=0;i<t.length;i++){const w=t[i];
+  if(w==='tram'){cur=(cur||1)*100;v+=cur;cur=0;has=true;continue}
+  if(w==='muoi'){if(cur>0&&cur<10){cur*=10}else if(cur===0&&!has){cur=10}else{flush();cur=10}has=true;continue}
+  const d=NW[w];
+  if(has&&cur%10===0&&(cur>=10||v>0)){cur+=(w==='mot'?1:(w==='lam'?5:(w==='tu'?4:d)));has=true;continue}
+  if(has)flush();cur=d;has=true}
+ flush();return out}
+function wordsToNum(s){ // chỉ đổi chữ số khi rõ là con số (đứng sau «số lượng/đường kính/cao…», đứng trước «cây/mét…», hoặc là cụm nhiều chữ số)
+ const t=s.split(' ');const out=[];let i=0;const isN=w=>(w in NW)||w==='tram';
+ while(i<t.length){if(!isN(t[i])){out.push(t[i]);i++;continue}
+  let j=i;while(j<t.length&&isN(t[j]))j++;const run=t.slice(i,j),prev=t[i-1]||'',next=t[j]||'';
+  const ok=(run.length>=2&&!(run.length===2&&run[0]==='khong'))||NUMMARK.has(prev)||NUMUNIT.has(next)||/^\d/.test(prev)&&false;
+  if(ok&&!(run.length===1&&run[0]==='khong'))out.push(...runVals(run).map(String));else out.push(...run);i=j}
  return out.join(' ')}
-function parseSay(t){let s=nd(t).replace(/(\d),(\d)/g,'$1.$2');const dims=[];s=s.replace(/(\d+)\s*x\s*(\d+)/g,(m,x,y)=>{dims.push(x+'x'+y);return ' '});s=s.replace(/([a-z])(\d)/g,'$1 $2').replace(/(\d)([a-z])/g,'$1 $2');
+function parseSay(t){let s=nd(t).replace(/(\d),(\d)/g,'$1.$2');const dims=[];s=s.replace(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)(?:\s*x\s*(\d+(?:\.\d+)?))?/g,(m,x,y,z)=>{dims.push(x+'x'+y+(z?'x'+z:''));return ' '});s=s.replace(/([a-z])(\d)/g,'$1 $2').replace(/(\d)([a-z])/g,'$1 $2');
  s=' '+wordsToNum(s).replace(/\s+/g,' ')+' ';
- s=s.replace(/ (\d+) nhan (\d+) /g,(m,x,y)=>{dims.push(x+'x'+y);return ' '});
- s=s.replace(/ ruoi /g,' .5 ').replace(/(\d+) \.5/g,(m,a)=>String(+a+0.5));
+ s=s.replace(/ (\d+(?:\.\d+)?) (?:m |met )?nhan (\d+(?:\.\d+)?)(?: (?:m|met))?(?: nhan (\d+(?:\.\d+)?))? /g,(m,x,y,z)=>{dims.push(x+'x'+y+(z?'x'+z:''));return ' '});
+ {const m2=s.match(/ dai (\d+(?:\.\d+)?)(?: m| met)? rong (\d+(?:\.\d+)?)(?: m| met)?(?: (?:cao|sau) (\d+(?:\.\d+)?))?/);if(m2){dims.push(m2[1]+'x'+m2[2]+(m2[3]?'x'+m2[3]:''));s=s.replace(m2[0],' ')}}
+ const RAW=s.replace(/\s+/g,' ').trim();
+ s=s.replace(/ (\d+)( met| m| phan| cm)? ruoi /g,(m,x,u)=>' '+(+x+0.5)+(u||'')+' ');
  let dk=null,cao=null,sl=null,m;
  m=s.match(/ (?:so luong|sl|gom|tong|tat ca|dien tich|khoi luong|x) (\d+(?:\.\d+)?)/);if(m){sl=+m[1];s=s.replace(m[0],' ')}
  m=s.match(/ (?:duong kinh|dk|phi|vanh)(?: (?:goc|than))? (\d+(?:\.\d+)?)(?: (?:cm|phan|xen ti met))?/);if(m){dk=+m[1];s=s.replace(m[0],' ')}
  m=s.match(/ (?:chieu cao|cao) (\d+(?:\.\d+)?)(?: (met|cm|xen ti met|m))?/);if(m){cao=+m[1];if(m[2]==='cm'||m[2]==='xen ti met'||(!m[2]&&cao>=20))cao=cao/100;s=s.replace(m[0],' ')}
+ s=s.replace(/ sau (\d+(?:\.\d+)?)(?: m| met)?/,' ');
+ if(sl==null){m=s.match(/ (\d+(?:\.\d+)?) (?:cay|khom|bui|ngoi|cai|gieng|goc) /);if(m){sl=+m[1];s=s.replace(m[0],' ')}}
  if(sl==null){m=s.match(/ (\d+(?:\.\d+)?) (?:cay|khom|bui|m2|met vuong|m vuong|ngoi|cai|gian|kg|m3|met khoi|khoi|met|m|md|goc|truc|gieng)\s*$/);if(m){sl=+m[1];s=s.replace(m[0],' ')}}
  if(dk==null){m=s.match(/ (\d+(?:\.\d+)?) /);if(m){dk=+m[1];s=s.replace(m[0],' ')}}
  const words=s.replace(/\b(met vuong|m vuong|met khoi|vuong|cay|loai|con|cai|cm|met|m)\b/g,' ').replace(/\d+(\.\d+)?/g,' ').replace(/\s+/g,' ').trim();
- return {words:(words+' '+dims.join(' ')).trim(),dk,cao,sl}}
+ const W=words.replace(/\b(kich thuoc|kt|co|la)\b/g,' ').replace(/\s+/g,' ').trim();
+ return {raw:RAW,words:(W+' '+dims.join(' ')).trim(),dk,cao,sl,sau:(RAW.match(/ sau (\d+(?:\.\d+)?)/)||[])[1]?+RAW.match(/ sau (\d+(?:\.\d+)?)/)[1]:null,dai:(RAW.match(/ dai (\d+(?:\.\d+)?)/)||[])[1]?+RAW.match(/ dai (\d+(?:\.\d+)?)/)[1]:null,dims:dims.length===1?dims[0].split('x').map(Number):[],dimtxt:dims}}
 function tok(s){return nd(s).split(/[ ,.;()]+/).filter(Boolean)}
 function inRng(v,r){if(!r)return false;const lo=r[0],hi=r[1];if(lo!=null&&(v<lo||(v===lo&&!r[2])))return false;if(hi!=null&&(v>hi||(v===hi&&!r[3])))return false;return true}
 let FAM=null;
@@ -968,8 +979,81 @@ function findFam(words){const F=fams().by;const w=' '+words+' ';let best=null,bs
    else if(k.startsWith(words)&&words.length>=2)s=30;else if(kt.map(x=>x[0]).join('')===words.replace(/ /g,''))s=40}
   if(s>bs){bs=s;best=k}}
  return bs>=20?best:null}
+// ===== TÀI SẢN / VẬT KIẾN TRÚC: nhận dạng theo đặc điểm, người dùng xác nhận =====
+const KIND=[ // [mã, regex trên câu nói không dấu, nhãn]
+ ['bephot',/ (be phot|ham phot|be tu hoai|ham cau) /,'Bể phốt'],['benuoc',/ (be nuoc|be chua|be xay|bon nuoc xay) /,'Bể nước'],
+ ['giengkhoan',/ gieng khoan /,'Giếng khoan'],['giengkhoi',/ (gieng khoi|gieng dao|gieng xay|gieng) /,'Giếng khơi'],
+ ['ranh',/ (ranh|muong thoat|cong thoat) /,'Rãnh thoát nước'],['mo',/ (mo dat|mo xay|ngoi mo|mo ) /,'Mộ'],['cayhuong',/ (cay huong|am tho|ban tho ngoai troi) /,'Cây hương'],
+ ['tuongrao',/ (tuong rao|hang rao|rao) /,'Tường rào'],['maivay',/ (mai (?:ton |ngoi |nhua |fibro |)(?:vay|che|hien|bat|treo|don)|che nang|mai che) /,'Mái vẩy'],
+ ['gac',/ (gac xep|gac lung) /,'Gác xép'],['nhasan',/ nha san /,'Nhà sàn'],['xuong',/ (nha xuong|xuong) /,'Nhà xưởng'],
+ ['bietthu',/ biet thu /,'Biệt thự'],['chungcu',/ chung cu /,'Chung cư'],['quan',/ (quan|kiot|ki ot|lan ban hang) /,'Quán'],
+ ['banmai',/ (ban mai|nha ban mai) /,'Nhà bán mái'],
+ ['tam',/ (chuong|lan|kho|bep|nha ve sinh|wc|cong trinh phu|nha tam|nha kho|nha bep|chai|tum|nha phu) /,'Công trình tạm'],
+ ['san',/ (san (?!xep))/,'Sân'],['duong',/ (duong di|loi di|duong|ngo) /,'Đường'],
+ ['nha',/ (nha|nha cap 4|nha mai bang|nha o) /,'Nhà']];
+const KIND_ITEM=[['bephot',/be phot/],['benuoc',/be nuoc/],['giengkhoan',/gieng khoan/],['giengkhoi',/gieng khoi/],['ranh',/ranh/],['mo',/di chuyen mo/],['cayhuong',/cay huong/],
+ ['tuongrao',/tuong rao/],['maivay',/mai vay/],['gac',/gac xep/],['nhasan',/nha san/],['xuong',/nha xuong/],['bietthu',/biet thu/],['chungcu',/chung cu/],['quan',/^quan/],
+ ['banmai',/ban mai/],['tam',/nha tam/],['san',/^san/],['duong',/^duong/],['nha',/^nha/]];
+const NEAR={tam:{banmai:3,quan:2},banmai:{tam:3,quan:1},quan:{tam:2,banmai:1},maivay:{banmai:1},nha:{tam:1,bietthu:1},san:{duong:2},duong:{san:2},giengkhoi:{giengkhoan:1},giengkhoan:{giengkhoi:1}};
+const TAGS=[ // [nhóm, mã, regex, nhãn]
+ ['tuong','T110',/ (110|tuong 10|tuong don|tuong mong|mot hang gach) /,'tường 110'],['tuong','T220',/ (220|tuong 20|tuong doi|tuong day|hai hang gach) /,'tường 220'],
+ ['tuong','TGACH',/ (tuong xay|tuong gach|xay gach|xay tuong|tuong) /,'tường xây gạch'],['tuong','TCOT',/ (vach cot|vach tre|phen|vach nua|vach go) /,'vách cót/tre'],
+ ['tuong','TTON',/ (vach ton|quay ton|tuong ton|vach tole) /,'vách tôn'],['tuong','TDA',/ (da hoc|da ong) /,'đá hộc/đá ong'],
+ ['mai','MTON',/ (ton|tole|lop ton|mai ton) /,'mái tôn'],['mai','MNGOI',/ (ngoi) /,'mái ngói'],['mai','MFIBRO',/ (fibro|phi bro|fi bro|pro xi mang|proximang|xi mang ami|tam lop xi mang|ami ang) /,'mái fibro XM'],
+ ['mai','MGD',/ (giay dau) /,'mái giấy dầu'],['mai','MLA',/ (mai la|la co|rom|la mia|tranh|lop la) /,'mái lá'],['mai','MBT',/ (mai bang|be tong cot thep|btct|do tran|mai do) /,'mái bằng BTCT'],['mai','MNHUA',/ (nhua|poly|tam nhua) /,'tấm nhựa'],
+ ['nen','NLANG',/ (lang xi mang|lang vua|nen xi mang|lang xm|lang|tam hop) /,'nền láng XM'],['nen','NGXM',/ (gach xi mang|gach hoa|gach bong) /,'gạch xi măng'],
+ ['nen','NGCHI',/ (gach chi|gach do|gach dat nung|gach dat) /,'gạch chỉ/gạch đất'],['nen','NCER',/ (ceramic|gach men|gach granite) /,'gạch ceramic'],
+ ['nen','NDAT',/ (nen dat) /,'nền đất'],['nen','NBT',/ (be tong|do be tong) /,'bê tông'],['nen','NGRA',/ (granito) /,'granitô'],['nen','NDA',/ (cap phoi|rai da|da ong) /,'cấp phối/đá'],
+ ['kp','KPCO',/ (co khu phu) /,'có khu phụ'],['kp','KPKO',/ (khong co khu phu|khong khu phu) /,'không khu phụ'],
+ ['sau','S25-',/ (sau (?:duoi |nho hon )?(1\d|2[0-5]|[0-9]) )/,'sâu ≤ 25m'],['sau','S25+',/ (sau (?:tren |hon )?(2[6-9]|[3-9]\d) )/,'sâu > 25m']];
+function clean(s){return ' '+(s||'').replace(/(\d)\.(\d)/g,'$1,$2').replace(/[,.;:()\-]/g,' ').replace(/(\d)(m|cm)\b/g,'$1 $2').replace(/\s+/g,' ').trim()+' '}
+function tagsOf(s){s=clean(s);const t={};for(const [g,c,re] of TAGS){if(re.test(s)){(t[g]=t[g]||new Set()).add(c)}}
+ if(t.tuong&&(t.tuong.has('T110')||t.tuong.has('T220')))t.tuong.add('TGACH');
+ if(t.kp&&t.kp.has('KPKO')&&!/ (?<!khong )co khu phu /.test(s.replace(/khong co khu phu/g,'')))t.kp.delete('KPCO');
+ if(t.nen&&t.nen.has('NLANG')&&/ lat gach /.test(s)===false&&t.nen.size>1&&!/ gach /.test(s))t.nen=new Set(['NLANG']);
+ return t}
+function kindOfText(s){s=clean(s);let best=null,pos=1e9;for(const [k,re] of KIND){const m=s.match(re);if(m&&m.index<pos){pos=m.index;best=k}}return best}
+function kindOfItem(it){const s=nd(it.ten);for(const [k,re] of KIND_ITEM)if(re.test(s))return k;return null}
+let CTI=null;const STOP=new Set(['mai','tuong','nen','xay','gach','lop','co','khong','va','hoac','cay','nha','cao','dai','rong','kich','thuoc','met','m','cm','so','luong','bang','the','la','loai','xi','mang','ton']);
+function ctItems(){if(CTI&&CTI._p===PKG)return CTI;CTI={_p:PKG,L:PKG.danhmuc.muc.filter(i=>i.loai==='CT').map(i=>{const full=nd(i.ten+' '+i.quycach);const sp=(i.quycach||'').split(' - ');
+  return {it:i,kind:kindOfItem(i),tags:tagsOf(full),spec:tagsOf(nd(sp.length>1?sp[sp.length-1]:''))}})};return CTI}
+function isAsset(words){const s=' '+words+' ';if(kindOfText(words))return true;return / (mai|tuong|nen|xay|lop|vach|be tong|gach) /.test(s)}
+function tenThucTe(orig){ // phần đầu câu trước các từ mô tả
+ const w=orig.trim().split(/\s+/);const out=[];for(const x of w){const n=nd(x);const prev=out.length?nd(out[out.length-1]):'';if(/^\d/.test(n)&&/^(cap|tang)$/.test(prev)){out.push(x);continue}if(/^(mai|tuong|nen|kich|thuoc|dai|rong|cao|sau|xay|lop|vach|so|luong|dien|tich|khoi|co|khong|bang|\d)/.test(n)&&out.length)break;out.push(x)}
+ return out.join(' ').replace(/[,.;]+$/,'')}
+function resolveCT(t,p){const k=kindOfText(p.raw);const ut=tagsOf(p.raw);const C=ctItems().L;
+ const res=[];for(const c of C){let s=0;const why=[],miss=[];
+  if(k){if(c.kind===k)s+=6;else if(NEAR[k]&&NEAR[k][c.kind])s+=NEAR[k][c.kind];else continue}
+  for(const g in ut){const U=ut[g],I=c.tags[g],S=c.spec[g];
+   if(!I){s-=0.6;continue}
+   const hit=[...U].filter(x=>I.has(x));const lack=[...U].filter(x=>x!=='TGACH'&&!I.has(x));s-=1.5*lack.length;
+   if(hit.length){s+=3*hit.length;if(S&&hit.some(x=>S.has(x)))s+=1.2;for(const x of hit){const tg=TAGS.find(z=>z[1]===x);if(tg&&!(x==='TGACH'&&hit.length>1))why.push(tg[3])}}
+   else{s-=1.5;miss.push([...I].map(x=>(TAGS.find(z=>z[1]===x)||[])[3]).join('/'))}}
+  // tường gạch chưa nói 110/220
+  if(ut.tuong&&ut.tuong.has('TGACH')&&!ut.tuong.has('T110')&&!ut.tuong.has('T220')&&c.tags.tuong){if(c.tags.tuong.has('T110')&&!c.tags.tuong.has('T220'))miss.push('? chưa nói tường 110 hay 220');if(c.tags.tuong.has('T220')&&!c.tags.tuong.has('T110'))miss.push('? chưa nói tường 110 hay 220')}
+  {const T=new Set(tok(c.it.ten+' '+c.it.quycach));let ov=0;for(const w of new Set(p.raw.split(' ')))if(w.length>=2&&!STOP.has(w)&&!/^\d/.test(w)&&T.has(w))ov++;s+=0.8*ov}
+  if(p.sau!=null){const m=(c.it.ten+' '+c.it.quycach).match(/sâu\s*(≤|>)\s*(\d+)/);if(m){const ok=m[1]==='≤'?p.sau<=+m[2]:p.sau>+m[2];s+=ok?4:-4;if(ok)why.push('sâu '+p.sau+' m')}}
+  if(!k&&!Object.keys(ut).length)continue;
+  res.push({it:c.it,s,why:[...new Set(why)],miss:[...new Set(miss)]})}
+ res.sort((a,b)=>b.s-a.s);
+ const top=res.filter(r=>r.s>0).slice(0,4);
+ return {mode:'ct',p,kind:k,kindLabel:k?(KIND.find(x=>x[0]===k)||[])[2]:'',ten_tt:tenThucTe(t),cands:top,list:top.map(r=>r.it)}}
+function qtyFor(it,p){const f=x=>String(x).replace('.',',');
+ if(it.dvt==='giếng'&&p.sl==null)return {sl:1,calc:'1 giếng'+(p.sau?' (sâu '+f(p.sau)+' m)':'')};
+ if(it.dvt==='m sâu'&&p.sau!=null&&p.sl==null)return {sl:p.sau,calc:'sâu '+f(p.sau)+' m'};
+ if(p.sl!=null)return {sl:p.sl,calc:''};let d=p.dims||[];
+ if(!d.length&&p.dai!=null&&p.cao!=null&&it.dvt==='m²')return {sl:Math.round(p.dai*p.cao*100)/100,calc:'dài '+f(p.dai)+' × cao '+f(p.cao)+' = '+f(Math.round(p.dai*p.cao*100)/100)+' m²'};
+ if(!d.length&&p.dai!=null)d=[p.dai];if(!d.length)return {sl:null,calc:''};
+ const v=d.map(Number);
+ if(it.dvt==='m³'&&v.length>=3){const r=Math.round(v[0]*v[1]*v[2]*100)/100;return {sl:r,calc:v.map(f).join(' × ')+' = '+f(r)+' m³'}}
+ if((it.dvt==='md'||it.dvt==='m sâu')){return {sl:v[0],calc:f(v[0])+' '+it.dvt}}
+ if(v.length>=2){const r=Math.round(v[0]*v[1]*100)/100;return {sl:r,calc:f(v[0])+' × '+f(v[1])+' = '+f(r)+' '+it.dvt}}
+ return {sl:v[0],calc:''}}
 function resolve(t){const p=parseSay(t);if(!p.words)return {p,fam:null,list:[]};
- const k=findFam(p.words);if(!k)return {p,fam:null,list:[]};
+ const k0=findFam(p.words);const kd=kindOfText(p.raw);
+ const treeFirst=k0&&fams().by[k0][0].loai!=='CT'&&p.words.startsWith(k0)&&(p.dk!=null||p.cao!=null||/ cay( |$)/.test(' '+p.raw)||!kd);
+ if(!treeFirst&&isAsset(p.raw)){const r=resolveCT(t,p);if(r.cands.length)return r}
+ const k=k0;if(!k)return {p,fam:null,list:[]};
  let L=fams().by[k];const rest=p.words.replace(k,' ').trim();
  if(p.dk!=null){const f=L.filter(i=>inRng(p.dk,i.dk));if(f.length)L=f;else if(L.some(i=>i.dk)){/* số không phải ĐK */const q=L.filter(i=>tok(i.quycach).includes(String(p.dk)));if(q.length)L=q}else{const q=L.filter(i=>tok(i.quycach).includes(String(p.dk)));if(q.length)L=q;else if(p.sl==null){p.sl=p.dk;p.dk=null}}}
  if(p.cao!=null){const f=L.filter(i=>inRng(p.cao,i.cao));if(f.length)L=f}
@@ -978,25 +1062,33 @@ function resolve(t){const p=parseSay(t);if(!p.words)return {p,fam:null,list:[]};
  return {p,fam:k,list:L}}
 let RES=null,typeT=null;
 function onType(v){clearTimeout(typeT);showRes(v?resolve(v):null);typeT=setTimeout(()=>commitText(v,false),1800)}
-function commitText(v,enter){clearTimeout(typeT);if(!v)return;const r=resolve(v);showRes(r);if(r.list.length===1&&r.p.sl!=null)autoSave(r.list[0],r.p.sl);else if(enter&&r.list.length===1){pick={sl:r.p.sl};askQty(r.list[0].id)}}
+function commitText(v,enter){clearTimeout(typeT);if(!v)return;const r=resolve(v);showRes(r);if(r.mode==='ct')return;if(r.list.length===1&&r.p.sl!=null)autoSave(r.list[0],r.p.sl);else if(enter&&r.list.length===1){pick={sl:r.p.sl};askQty(r.list[0].id)}}
 function showRes(r){RES=r;const e=$('sug');if(!r){e.innerHTML='';return}
+ if(r.mode==='ct'){const f=x=>Number(x).toLocaleString('vi-VN');
+  e.innerHTML='<div class="note">Hiểu là: <b>'+esc(r.ten_tt||r.kindLabel||'tài sản')+'</b>'+(r.kindLabel?' → loại «'+esc(r.kindLabel)+'»':'')+(r.p.dims&&r.p.dims.length?' • kích thước '+r.p.dims.join(' × '):'')+(r.p.sl!=null?' • số lượng '+r.p.sl:'')+'</div><div class="note">Chọn dòng đơn giá phù hợp nhất (xếp theo độ khớp):</div>'+
+  r.cands.map((c,j)=>{const q=qtyFor(c.it,r.p);return '<div class="res ct'+(j===0?'':' alt')+'" onclick="pickCT('+j+')"><div class="nm">'+(j===0?'★ ':'')+esc(c.it.ten)+'</div><div class="qc">'+esc(c.it.quycach||'')+'</div>'+
+   '<div class="why">'+c.why.map(w=>'<span class="ok">✓ '+esc(w)+'</span>').join('')+c.miss.map(w=>'<span class="no">'+esc(w.startsWith('?')?w:'✗ bảng giá: '+w)+'</span>').join('')+'</div>'+
+   '<div class="qc">'+(q.sl!=null?'<b style="font-size:20px">'+(q.calc||('× '+String(q.sl).replace('.',',')+' '+esc(c.it.dvt)))+'</b>':'<span class="warn">chưa có số lượng/kích thước — bấm để nhập</span>')+' • '+f(c.it.gia||0)+' đ/'+esc(c.it.dvt)+'</div></div>'}).join('')+
+  '<div class="note">Không đúng? Nói lại rõ hơn (vd thêm «tường 110», «mái ngói») hoặc mở «Chọn bằng tay».</div>';return}
  const p=r.p;const heard='<div class="note">Hiểu là: '+(r.fam?'<b>'+esc(r.list[0]?r.list[0].ten:r.fam)+'</b>':'<b style="color:#ff9d3c">chưa rõ tên cây/tài sản</b>')+(p.dk!=null?' • ĐK '+p.dk+' cm':'')+(p.cao!=null?' • cao '+p.cao+' m':'')+(p.sl!=null?' • số lượng <b>'+p.sl+'</b>':'')+'</div>';
  if(!r.fam){e.innerHTML=heard;return}
  if(r.list.length===1){const i=r.list[0];e.innerHTML=heard+'<div class="res"><div class="nm">'+esc(i.ten)+'</div><div class="qc">'+esc(i.quycach||'')+' • '+esc(i.dvt)+'</div>'+(p.sl!=null?'<div class="sl">× '+String(p.sl).replace('.',',')+'</div>':'<div class="warn">Chưa nghe số lượng — nói tiếp «số lượng …» hoặc bấm vào đây</div>')+'</div>';
   e.querySelector('.res').onclick=()=>{pick={sl:p.sl};askQty(i.id)};return}
  e.innerHTML=heard+'<div class="note">Có '+r.list.length+' quy cách — bấm chọn'+(p.sl!=null?' (số lượng '+p.sl+' sẽ lưu luôn)':'')+':</div><div class="chips">'+r.list.slice(0,20).map(i=>'<button onclick="pickChip('+i.id+')">'+esc(i.quycach||i.ten)+'<small>'+esc(i.dvt)+'</small></button>').join('')+'</div>'}
+function pickCT(j){const r=RES;const c=r.cands[j];const q=qtyFor(c.it,r.p);ctNote={ten_tt:r.ten_tt,mota:$('q').value,calc:q.calc};if(q.sl!=null)autoSave(c.it,q.sl,true);else{pick={sl:null};askQty(c.it.id)}}
+let ctNote=null;
 function pickChip(id){const sl=RES&&RES.p&&RES.p.sl;if(sl!=null){autoSave(PKG.danhmuc.muc.find(x=>x.id===id),sl)}else{pick={sl:null};askQty(id)}}
 let lastSaved=null;
-async function autoSave(it,sl){qitem=it;qedit=null;qv=String(sl);$('qnote').value='';
- // cộng dồn nếu đã có cùng loại trong thửa
- const ex=RECS.find(x=>x.k===key(cur)&&!x.xoa&&x.muc===it.id&&x.to_kd===SET.to&&!x.ghichu);
+async function autoSave(it,sl,isCT){qitem=it;qedit=null;qv=String(sl);$('qnote').value='';
+ // cộng dồn nếu đã có cùng loại trong thửa (tài sản thì không gộp)
+ const ex=isCT?null:RECS.find(x=>x.k===key(cur)&&!x.xoa&&x.muc===it.id&&x.to_kd===SET.to&&!x.ghichu);
  let r;if(ex){ex.sl=Math.round((ex.sl+sl)*100)/100;ex.sua=new Date().toISOString();ex.sent=false;r=ex;lastSaved={r,add:sl}}
  else{r=newRec(it,sl);RECS.push(r);lastSaved={r,add:null}}
  await DB.put('rec',r);$('q').value='';showRes(null);renderTabs();renderItems();
- $('undot').textContent='Đã lưu: '+it.ten+' ('+(it.quycach||it.dvt)+') × '+String(sl).replace('.',',')+(ex?' (cộng dồn = '+String(r.sl).replace('.',',')+')':'');
+ $('undot').textContent='Đã lưu: '+(r.ten_tt?r.ten_tt+' → ':'')+it.ten+((it.quycach||'').length<40&&it.quycach?' ('+it.quycach+')':'')+' × '+String(sl).replace('.',',')+' '+it.dvt+(ex?' (cộng dồn = '+String(r.sl).replace('.',',')+')':'');
  $('undo').classList.add('on');clearTimeout(window._ut);window._ut=setTimeout(()=>$('undo').classList.remove('on'),7000)}
 async function undoLast(){if(!lastSaved)return;const {r,add}=lastSaved;if(add!=null){r.sl=Math.round((r.sl-add)*100)/100}else r.xoa=true;r.sent=false;await DB.put('rec',r);lastSaved=null;$('undo').classList.remove('on');renderItems();toast('Đã hoàn tác')}
-function newRec(it,sl){return {id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:it.id,ten:it.ten,quycach:it.quycach,dvt:it.dvt,nhom:it.nhom,to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null,sl,ghichu:'',sent:false}}
+function newRec(it,sl){const n=ctNote;ctNote=null;return {ten_tt:n?n.ten_tt:'',mota:n?n.mota:'',cachtinh:n?n.calc:'',id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:it.id,ten:it.ten,quycach:it.quycach,dvt:it.dvt,nhom:it.nhom,to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null,sl,ghichu:'',sent:false}}
 // Micro: nhận dạng giọng nói của máy (cần mạng); không có thì dùng micro bàn phím
 let sr=null,srOn=false;
 function listen(){const S=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -1016,13 +1108,13 @@ function step(d){qfresh=false;let v=parseFloat(qv)||0;v=Math.max(0,Math.round((v
 async function saveQty(){const sl=parseFloat(qv);if(!(sl>0)){toast('Nhập số lượng');return}
  // cùng thửa + cùng loại đã có -> cộng dồn
  let r=qedit;if(!r){const ex=RECS.find(x=>x.k===key(cur)&&!x.xoa&&x.muc===qitem.id&&x.to_kd===SET.to&&!($('qnote').value.trim()));if(ex&&!ex.ghichu&&confirm(qitem.ten+' '+(qitem.quycach||'')+' đã có '+String(ex.sl).replace('.',',')+'. Cộng thêm '+String(sl).replace('.',',')+'?')){ex.sl=Math.round((ex.sl+sl)*100)/100;ex.sua=new Date().toISOString();ex.sent=false;await DB.put('rec',ex);done(ex);return}}
- r=r||{id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:qitem.id,ten:qitem.ten,quycach:qitem.quycach,dvt:qitem.dvt,nhom:qitem.nhom,
+ r=r||{ten_tt:ctNote?ctNote.ten_tt:'',mota:ctNote?ctNote.mota:'',id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:qitem.id,ten:qitem.ten,quycach:qitem.quycach,dvt:qitem.dvt,nhom:qitem.nhom,
   to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null};
  r.sl=sl;r.ghichu=$('qnote').value.trim();r.sent=false;if(qedit)r.sua=new Date().toISOString();
  await DB.put('rec',r);if(!qedit)RECS.push(r);done(r)}
-function done(r){hide('qty');$('q').value='';showRes(null);renderTabs();renderItems();toast('Đã lưu: '+r.ten+' × '+String(r.sl).replace('.',','))}
+function done(r){ctNote=null;hide('qty');$('q').value='';showRes(null);renderTabs();renderItems();toast('Đã lưu: '+r.ten+' × '+String(r.sl).replace('.',','))}
 function renderItems(){const it=RECS.filter(r=>r.k===key(cur)&&!r.xoa);$('cnt').textContent=it.length+' mục';
- $('items').innerHTML=it.map(r=>'<div class="it"><div class="n" onclick="editRec(\''+r.id+'\')">'+esc(r.ten)+' <small>'+esc(r.quycach||'')+' • '+esc(r.dvt)+(r.ghichu?' • '+esc(r.ghichu):'')+'</small></div><button class="pm" onclick="bump(\''+r.id+'\',-1)">−</button><div class="q">'+String(r.sl).replace('.',',')+'</div><button class="pm" onclick="bump(\''+r.id+'\',1)">+</button><button class="x" onclick="delRec(\''+r.id+'\')">✕</button></div>').join('')||'<div class="note">Chưa có mục nào. Bấm 🎤 rồi nói, vd «mít đường kính 30 số lượng 6 cây».</div>';status()}
+ $('items').innerHTML=it.map(r=>'<div class="it"><div class="n" onclick="editRec(\''+r.id+'\')">'+(r.ten_tt?'<b>'+esc(r.ten_tt)+'</b> → ':'')+esc(r.ten)+' <small>'+esc(r.quycach||'')+' • '+esc(r.dvt)+(r.ghichu?' • '+esc(r.ghichu):'')+'</small></div><button class="pm" onclick="bump(\''+r.id+'\',-1)">−</button><div class="q">'+String(r.sl).replace('.',',')+'</div><button class="pm" onclick="bump(\''+r.id+'\',1)">+</button><button class="x" onclick="delRec(\''+r.id+'\')">✕</button></div>').join('')||'<div class="note">Chưa có mục nào. Bấm 🎤 rồi nói, vd «mít đường kính 30 số lượng 6 cây».</div>';status()}
 async function bump(id,d){const r=RECS.find(x=>x.id===id);const v=Math.round((r.sl+d)*100)/100;if(v<=0){delRec(id);return}r.sl=v;r.sua=new Date().toISOString();r.sent=false;await DB.put('rec',r);renderItems()}
 function editRec(id){const r=RECS.find(x=>x.id===id);pick={sl:null};askQty(r.muc,r)}
 async function delRec(id){const r=RECS.find(x=>x.id===id);if(!confirm('Xóa «'+r.ten+' '+(r.quycach||'')+'» ?'))return;r.xoa=true;r.sent=false;await DB.put('rec',r);renderItems();renderTabs()}
@@ -1057,7 +1149,7 @@ async function openMenu(){const nA=(await DB.all('audio')).length;const un=RECS.
  if(SET.chinh){const by={};for(const k in OTHER)by[OTHER[k]]=(by[OTHER[k]]||0)+1;
   h+='<h3 style="margin-top:22px">★ Chủ trì</h3><button class="btn pri" onclick="pickFile(\'other\')">Nạp kết quả các tổ (file nhận qua Zalo)</button><div class="note">'+(Object.keys(by).length?Object.entries(by).map(([t,n])=>esc(t)+': '+n+' thửa').join(' • '):'Chưa nạp kết quả tổ nào.')+'<br>Thửa tổ khác đã đếm hiện màu xanh dương.</div><button class="btn" onclick="SET.chinh=false;DB.set(\'set\',SET);calcAsg();restyle();openMenu()">Thoát chế độ chủ trì</button>'}
  else h+='<h3 style="margin-top:22px">Chế độ chủ trì</h3><input id="mql" placeholder="Mã quản lý" autocomplete="off"><button class="btn" onclick="setQL()">Mở chế độ chủ trì</button>';
- h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (5)</div>';$('menub').innerHTML=h;show('menu')}
+ h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (6)</div>';$('menub').innerHTML=h;show('menu')}
 // ===== Mã dự án & tải dữ liệu đã mã hóa =====
 function normMa(m){return (m||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
