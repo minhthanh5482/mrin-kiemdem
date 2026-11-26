@@ -744,7 +744,7 @@ input,select,textarea{width:100%;height:46px;border-radius:10px;border:1px solid
 <div id="top"><b>MRIN</b><span style="color:#fff">Kiểm đếm</span><span class="sp"></span><div id="st"></div><button class="ib" onclick="openMenu()">☰</button></div>
 <div id="map"></div>
 <div id="findbar"><button onclick="whereAmI()">Tôi đang ở thửa nào?</button></div>
-<div id="fab"><button class="fb" title="Vị trí của tôi" onclick="locate(true)">◎</button><button class="fb" title="Tìm thửa" onclick="openSearch()">⌕</button></div>
+<div id="fab"><button class="fb" title="Vị trí của tôi" onclick="locate(true)">◎</button><button class="fb" title="Tìm thửa" onclick="openSearch()" style="font-size:13px;font-weight:700">Tìm<br>thửa</button></div>
 
 <div class="sheet" id="sh"></div>
 
@@ -988,13 +988,13 @@ async function openMenu(){const nA=(await DB.all('audio')).length;const un=RECS.
  if(SET.chinh){const by={};for(const k in OTHER)by[OTHER[k]]=(by[OTHER[k]]||0)+1;
   h+='<h3 style="margin-top:22px">★ Chủ trì</h3><button class="btn pri" onclick="pickFile(\'other\')">Nạp kết quả các tổ (file nhận qua Zalo)</button><div class="note">'+(Object.keys(by).length?Object.entries(by).map(([t,n])=>esc(t)+': '+n+' thửa').join(' • '):'Chưa nạp kết quả tổ nào.')+'<br>Thửa tổ khác đã đếm hiện màu xanh dương.</div><button class="btn" onclick="SET.chinh=false;DB.set(\'set\',SET);calcAsg();restyle();openMenu()">Thoát chế độ chủ trì</button>'}
  else h+='<h3 style="margin-top:22px">Chế độ chủ trì</h3><input id="mql" placeholder="Mã quản lý" autocomplete="off"><button class="btn" onclick="setQL()">Mở chế độ chủ trì</button>';
- h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (3)</div>';$('menub').innerHTML=h;show('menu')}
+ h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (4)</div>';$('menub').innerHTML=h;show('menu')}
 // ===== Mã dự án & tải dữ liệu đã mã hóa =====
 function normMa(m){return (m||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 const QLH='b8a09dd661c0fece29d3f191bbadf5490e6ebbbdf4c63124752abfd9b96f1458';
 async function setQL(){if(await sha('mrinql:'+normMa($('mql').value))===QLH){SET.chinh=true;await DB.set('set',SET);calcAsg();restyle();toast('Đã mở chế độ chủ trì');openMenu()}else toast('Mã quản lý không đúng')}
-async function setMa(){const m=normMa($('mma').value);if(m.length<8){toast('Mã dự án chưa đúng');return}const ok=await syncPkg(true,m);if(ok){SET.ma=m;await DB.set('set',SET);openMenu()}}
+async function setMa(){const m=normMa($('mma').value);if(m.length<8){toast('Mã dự án chưa đúng');return}const ok=await syncPkg(true,m);if(ok){SET.ma=m;await DB.set('set',SET);hide('menu');setTimeout(()=>toast('Xong! Chạm vào 1 thửa trên bản đồ, hoặc bấm «Tôi đang ở thửa nào?», hoặc nút «Tìm thửa» ở góc dưới',7000),600)}}
 function b64(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}
 let syncing=false;
 async function syncPkg(manual,maIn){const m=maIn||SET.ma;if(!m||syncing)return false;syncing=true;const say=t=>{const e=$('syn');if(e)e.textContent=t;if(manual)toast(t,3000)};
