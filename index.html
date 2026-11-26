@@ -731,6 +731,7 @@ input,select,textarea{width:100%;height:46px;border-radius:10px;border:1px solid
 .bigmic.on{background:linear-gradient(#ff6b5a,#c0392b);color:#fff;border-color:#fff;animation:p 1s infinite}
 .res{padding:14px;border-radius:14px;background:var(--card);border:2px solid var(--gold);margin:10px 0}
 .res .nm{font-size:19px;font-weight:800;color:var(--gold)}.res .qc{color:var(--tx);margin-top:2px}.res .sl{font-size:28px;font-weight:800;color:#fff;margin-top:6px}
+.act{padding:12px 14px;border-radius:14px;background:#0f2547;border:2px dashed var(--ok);margin:10px 0}.act .nm{font-size:20px;font-weight:800;color:#fff}.act .qc{color:var(--tx);margin-top:2px}.lb{font-size:11px;letter-spacing:.5px;color:var(--sub);font-weight:700}.it small.gc{color:#ffcf6b}
 .res.alt{border-color:var(--bd)}.why{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}.why span{font-size:13px;padding:2px 8px;border-radius:8px}.why .ok{background:#1f8a6333;color:#4ee6b0}.why .no{background:#ff9d3c22;color:#ff9d3c}
 .res .warn{color:#ff9d3c;font-size:14px;margin-top:6px}
 details summary{margin-top:14px;color:var(--sub);font-size:15px;padding:8px 0}
@@ -958,7 +959,7 @@ function parseSay(t){let s=nd(t).replace(/(\d),(\d)/g,'$1.$2');const dims=[];s=s
  s=s.replace(/ (\d+)( met| m| phan| cm)? ruoi /g,(m,x,u)=>' '+(+x+0.5)+(u||'')+' ');
  let dk=null,cao=null,sl=null,m;
  m=s.match(/ (?:so luong|sl|gom|tong|tat ca|dien tich|khoi luong|x) (\d+(?:\.\d+)?)/);if(m){sl=+m[1];s=s.replace(m[0],' ')}
- m=s.match(/ (?:duong kinh|dk|phi|vanh)(?: (?:goc|than))? (\d+(?:\.\d+)?)(?: (?:cm|phan|xen ti met))?/);if(m){dk=+m[1];s=s.replace(m[0],' ')}
+ let dkx=false;m=s.match(/ (?:duong kinh|dk|phi|vanh)(?: (?:goc|than))? (\d+(?:\.\d+)?)(?: (?:cm|phan|xen ti met))?/);if(m){dk=+m[1];dkx=true;s=s.replace(m[0],' ')}
  m=s.match(/ (?:chieu cao|cao) (\d+(?:\.\d+)?)(?: (met|cm|xen ti met|m))?/);if(m){cao=+m[1];if(m[2]==='cm'||m[2]==='xen ti met'||(!m[2]&&cao>=20))cao=cao/100;s=s.replace(m[0],' ')}
  s=s.replace(/ sau (\d+(?:\.\d+)?)(?: m| met)?/,' ');
  if(sl==null){m=s.match(/ (\d+(?:\.\d+)?) (?:cay|khom|bui|ngoi|cai|gieng|goc) /);if(m){sl=+m[1];s=s.replace(m[0],' ')}}
@@ -966,7 +967,8 @@ function parseSay(t){let s=nd(t).replace(/(\d),(\d)/g,'$1.$2');const dims=[];s=s
  if(dk==null){m=s.match(/ (\d+(?:\.\d+)?) /);if(m){dk=+m[1];s=s.replace(m[0],' ')}}
  const words=s.replace(/\b(met vuong|m vuong|met khoi|vuong|cay|loai|con|cai|cm|met|m)\b/g,' ').replace(/\d+(\.\d+)?/g,' ').replace(/\s+/g,' ').trim();
  const W=words.replace(/\b(kich thuoc|kt|co|la)\b/g,' ').replace(/\s+/g,' ').trim();
- return {raw:RAW,words:(W+' '+dims.join(' ')).trim(),dk,cao,sl,sau:(RAW.match(/ sau (\d+(?:\.\d+)?)/)||[])[1]?+RAW.match(/ sau (\d+(?:\.\d+)?)/)[1]:null,dai:(RAW.match(/ dai (\d+(?:\.\d+)?)/)||[])[1]?+RAW.match(/ dai (\d+(?:\.\d+)?)/)[1]:null,dims:dims.length===1?dims[0].split('x').map(Number):[],dimtxt:dims}}
+ const RAWC=(' '+RAW+' ').replace(/ (duong kinh|dk|phi|vanh)( goc| than)? \d+(\.\d+)?( cm| phan)?/g,' ').replace(/ (so luong|sl) \d+(\.\d+)?/g,' ').replace(/\s+/g,' ').trim();
+ return {raw:RAW,rawc:RAWC,dkx,words:(W+' '+dims.join(' ')).trim(),dk,cao,sl,sau:(RAW.match(/ sau (\d+(?:\.\d+)?)/)||[])[1]?+RAW.match(/ sau (\d+(?:\.\d+)?)/)[1]:null,dai:(RAW.match(/ dai (\d+(?:\.\d+)?)/)||[])[1]?+RAW.match(/ dai (\d+(?:\.\d+)?)/)[1]:null,dims:dims.length===1?dims[0].split('x').map(Number):[],dimtxt:dims}}
 function tok(s){return nd(s).split(/[ ,.;()]+/).filter(Boolean)}
 function inRng(v,r){if(!r)return false;const lo=r[0],hi=r[1];if(lo!=null&&(v<lo||(v===lo&&!r[2])))return false;if(hi!=null&&(v>hi||(v===hi&&!r[3])))return false;return true}
 let FAM=null;
@@ -975,7 +977,7 @@ function findFam(words){const F=fams().by;const w=' '+words+' ';let best=null,bs
  for(const k in F){if(k==='_p')continue;let s=0;
   if(w.includes(' '+k+' '))s=100+k.length-w.indexOf(' '+k+' ')*0.5;           // đúng tên
   else{const kt=k.split(' '),wt=words.split(' ');const hit=kt.filter(x=>wt.includes(x)).length;
-   if(hit===kt.length)s=60+k.length;else if(hit&&kt[0]===wt[0])s=20+hit*10;
+   if(hit===kt.length)s=60+k.length;else if(hit&&kt[0]===wt[0]&&(wt.length<2||kt.length<2||kt[1]===wt[1]||!/^[a-z]/.test(wt[1]||'')))s=20+hit*10;
    else if(k.startsWith(words)&&words.length>=2)s=30;else if(kt.map(x=>x[0]).join('')===words.replace(/ /g,''))s=40}
   if(s>bs){bs=s;best=k}}
  return bs>=20?best:null}
@@ -1019,9 +1021,9 @@ function ctItems(){if(CTI&&CTI._p===PKG)return CTI;CTI={_p:PKG,L:PKG.danhmuc.muc
   return {it:i,kind:kindOfItem(i),tags:tagsOf(full),spec:tagsOf(nd(sp.length>1?sp[sp.length-1]:''))}})};return CTI}
 function isAsset(words){const s=' '+words+' ';if(kindOfText(words))return true;return / (mai|tuong|nen|xay|lop|vach|be tong|gach) /.test(s)}
 function tenThucTe(orig){ // phần đầu câu trước các từ mô tả
- const w=orig.trim().split(/\s+/);const out=[];for(const x of w){const n=nd(x);const prev=out.length?nd(out[out.length-1]):'';if(/^\d/.test(n)&&/^(cap|tang)$/.test(prev)){out.push(x);continue}if(/^(mai|tuong|nen|kich|thuoc|dai|rong|cao|sau|xay|lop|vach|so|luong|dien|tich|khoi|co|khong|bang|\d)/.test(n)&&out.length)break;out.push(x)}
+ const w=orig.trim().split(/\s+/);const out=[];for(const x of w){const n=nd(x);const prev=out.length?nd(out[out.length-1]):'';if(/^\d/.test(n)&&/^(cap|tang|gach|tuong)$/.test(prev)){out.push(x);continue}if(/^(mai|tuong|nen|kich|thuoc|dai|rong|cao|sau|xay|lop|vach|so|luong|dien|tich|khoi|co|khong|bang|\d)/.test(n)&&out.length)break;out.push(x)}
  return out.join(' ').replace(/[,.;]+$/,'')}
-function resolveCT(t,p){const k=kindOfText(p.raw);const ut=tagsOf(p.raw);const C=ctItems().L;
+function resolveCT(t,p){const k=kindOfText(p.rawc);const ut=tagsOf(p.rawc);const C=ctItems().L;
  const res=[];for(const c of C){let s=0;const why=[],miss=[];
   if(k){if(c.kind===k)s+=6;else if(NEAR[k]&&NEAR[k][c.kind])s+=NEAR[k][c.kind];else continue}
   for(const g in ut){const U=ut[g],I=c.tags[g],S=c.spec[g];
@@ -1050,9 +1052,9 @@ function qtyFor(it,p){const f=x=>String(x).replace('.',',');
  if(v.length>=2){const r=Math.round(v[0]*v[1]*100)/100;return {sl:r,calc:f(v[0])+' × '+f(v[1])+' = '+f(r)+' '+it.dvt}}
  return {sl:v[0],calc:''}}
 function resolve(t){const p=parseSay(t);if(!p.words)return {p,fam:null,list:[]};
- const k0=findFam(p.words);const kd=kindOfText(p.raw);
+ const k0=findFam(p.words);const kd=kindOfText(p.rawc);
  const treeFirst=k0&&fams().by[k0][0].loai!=='CT'&&p.words.startsWith(k0)&&(p.dk!=null||p.cao!=null||/ cay( |$)/.test(' '+p.raw)||!kd);
- if(!treeFirst&&isAsset(p.raw)){const r=resolveCT(t,p);if(r.cands.length)return r}
+ if(!treeFirst&&(kd||(!looksTree(p)&&isAsset(p.rawc)))){const r=resolveCT(t,p);if(r.cands.length)return r}
  const k=k0;if(!k)return {p,fam:null,list:[]};
  let L=fams().by[k];const rest=p.words.replace(k,' ').trim();
  if(p.dk!=null){const f=L.filter(i=>inRng(p.dk,i.dk));if(f.length)L=f;else if(L.some(i=>i.dk)){/* số không phải ĐK */const q=L.filter(i=>tok(i.quycach).includes(String(p.dk)));if(q.length)L=q}else{const q=L.filter(i=>tok(i.quycach).includes(String(p.dk)));if(q.length)L=q;else if(p.sl==null){p.sl=p.dk;p.dk=null}}}
@@ -1060,61 +1062,96 @@ function resolve(t){const p=parseSay(t);if(!p.words)return {p,fam:null,list:[]};
  if(rest&&L.length>1){const rw=' '+rest+' ';const sc=L.map(i=>{const T=tok(i.quycach);let s=rest.split(' ').filter(w=>T.includes(w)).length;for(const ng of ['chua','khong','chưa'])if(T.includes(ng)&&!rw.includes(' '+ng+' '))s-=0.9;return s});const mx=Math.max(...sc);if(mx>0)L=L.filter((i,j)=>sc[j]===mx)}
  if(L.length>1&&p.dk==null&&p.cao==null&&!rest){const g=L.filter(i=>!/giong|vuon uom/.test(nd(i.quycach)));if(g.length&&g.length<L.length)L=g}
  return {p,fam:k,list:L}}
+// ===== Tên thực tế + áp dụng đơn giá của loại khác =====
+const REFRE=/ (ap dung don gia|ap dung gia|ap dung|ap don gia|ap gia|tinh gia theo|tinh theo|theo gia|lay gia|gia tuong duong|tuong duong voi|tuong duong nhu|ap theo) /;
+function splitRef(t){const W=t.trim().split(/\s+/);const N=W.map(nd);const s=' '+N.join(' ')+' ';const m=s.match(REFRE);if(!m)return null;
+ const before=s.slice(0,m.index).trim();const k=before?before.split(' ').length:0;const n=m[1].split(' ').length;
+ let B=W.slice(k+n);while(B.length&&/^(gia|don|cua|theo|cho|la|loai|bang|voi|nhu)$/.test(nd(B[0])))B.shift();
+ return {A:W.slice(0,k).join(' '),B:B.join(' ')}}
+const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+function treeName(orig){const w=orig.trim().split(/\s+/);const out=[];for(const x of w){const n=nd(x).replace(/[^a-z0-9]/g,'');if(!n)continue;if(/^(duong|kinh|dk|phi|vanh|cao|so|luong|sl|\d)/.test(n))break;if(!out.length&&n==='cay')continue;out.push(x.replace(/[,.;:]+$/,''))}return cap(out.join(' '))}
+function treeSpec(p){const f=x=>String(x).replace('.',',');return [p.dk!=null?'ĐK '+f(p.dk)+' cm':'',p.cao!=null?'cao '+f(p.cao)+' m':''].filter(Boolean).join('; ')}
+function descOf(orig,ten){let s=orig.trim();const tw=(ten||'').trim().split(/\s+/).length;s=s.split(/\s+/).slice(ten?tw:0).join(' ');
+ const m=s.match(/(kích thước|kich thuoc|\bkt\b|dài\s|\bdai\b|số lượng|so luong|diện tích|dien tich|khối lượng|sâu\s*\d|cao\s*\d|\d+([.,]\d+)?\s*(x|nhân|nhan)\s*\d|\d+([.,]\d+)?\s*(mét vuông|m2|m²|mét khối|m3|md|mét|m\b|cái|ngôi|giếng))/i);if(m)s=s.slice(0,m.index);
+ return s.replace(/^[\s,.;:-]+|[\s,.;:-]+$/g,'')}
+function dimsTxt(p){const f=x=>String(x).replace('.',',');const d=[];if(p.dims&&p.dims.length)d.push('KT '+p.dims.map(f).join(' × ')+' m');else{if(p.dai!=null)d.push('dài '+f(p.dai)+' m');if(p.cao!=null)d.push('cao '+f(p.cao)+' m')}if(p.sau!=null)d.push('sâu '+f(p.sau)+' m');return d.join('; ')}
+function looksTree(p){return p.dkx||/ (cay|khom|bui|goc) /.test(' '+p.raw+' ')}
+const REFTREES=['nhan','vai','xoai','buoi','mit','hong xiem','xa cu','bang','hoa sua','long nao','sau','phuong','keo','bach dan','lat','sua'];
+function refTreeChoices(p){const F=fams().by;const out=[];for(const k of REFTREES){const L=F[k];if(!L)continue;let it=null;if(p.dk!=null)it=L.find(i=>inRng(p.dk,i.dk));if(!it&&p.cao!=null)it=L.find(i=>inRng(p.cao,i.cao));if(it)out.push(it)}return out.slice(0,10)}
+function resolveAll(t){
+ const sp=splitRef(t);
+ if(sp&&sp.A){const pA=parseSay(sp.A);let tB=sp.B;const pB0=parseSay(tB||'x');
+  if(pB0.dk==null&&pA.dk!=null)tB+=' duong kinh '+pA.dk;if(pB0.cao==null&&pA.cao!=null)tB+=' cao '+pA.cao;
+  const asset=!!kindOfText(pA.rawc)||(!looksTree(pA)&&isAsset(pA.rawc));const ten=asset?cap(tenThucTe(sp.A)):treeName(sp.A);
+  const act={ten,quycach:asset?[descOf(sp.A,tenThucTe(sp.A)),dimsTxt(pA)].filter(Boolean).join('; '):treeSpec(pA),asset};
+  const rB=tB.trim()?resolve(tB):{p:pB0,list:[]};
+  let cands=rB.mode==='ct'?rB.cands.map(c=>c.it):rB.list;
+  return {mode:'ref',p:pA,act,ref:rB,cands,src:t}}
+ const r=resolve(t);
+ if(r.mode==='ct'){const tt=r.ten_tt;r.act={ten:cap(tt),quycach:[descOf(t,tt),dimsTxt(r.p)].filter(Boolean).join('; '),asset:true};return r}
+ if(!r.fam&&r.p.words&&(looksTree(r.p)||r.p.dk!=null)){const ten=treeName(t);if(ten)return {mode:'unk',p:r.p,act:{ten,quycach:treeSpec(r.p),asset:false},cands:refTreeChoices(r.p),list:[]}}
+ return r}
 let RES=null,typeT=null;
-function onType(v){clearTimeout(typeT);showRes(v?resolve(v):null);typeT=setTimeout(()=>commitText(v,false),1800)}
-function commitText(v,enter){clearTimeout(typeT);if(!v)return;const r=resolve(v);showRes(r);if(r.mode==='ct')return;if(r.list.length===1&&r.p.sl!=null)autoSave(r.list[0],r.p.sl);else if(enter&&r.list.length===1){pick={sl:r.p.sl};askQty(r.list[0].id)}}
+function onType(v){clearTimeout(typeT);showRes(v?resolveAll(v):null);typeT=setTimeout(()=>commitText(v,false),1800)}
+function commitText(v,enter){clearTimeout(typeT);if(!v)return;const r=resolveAll(v);showRes(r);if(r.mode)return;if(r.list.length===1&&r.p.sl!=null)autoSave(r.list[0],r.p.sl);else if(enter&&r.list.length===1){pick={sl:r.p.sl};askQty(r.list[0].id)}}
+function actBox(act,p,extra){return '<div class="act"><div class="lb">KIỂM ĐẾM THỰC TẾ</div><div class="nm">'+esc(act.ten||'(chưa rõ tên)')+'</div>'+(act.quycach?'<div class="qc">'+esc(act.quycach)+'</div>':'')+(p.sl!=null?'<div class="qc">Số lượng: <b>'+String(p.sl).replace('.',',')+'</b></div>':'')+(extra||'')+'</div>'}
+function refRow(it,j,p,c){const f=x=>Number(x).toLocaleString('vi-VN');const q=qtyFor(it,p);return '<div class="res ct'+(j===0?'':' alt')+'" onclick="pickRef('+j+')"><div class="lb">'+(j===0?'★ ':'')+'ÁP DỤNG ĐƠN GIÁ</div><div class="nm">'+esc(it.ten)+'</div><div class="qc">'+esc(it.quycach||'')+'</div>'+
+ (c?'<div class="why">'+c.why.map(w=>'<span class="ok">✓ '+esc(w)+'</span>').join('')+c.miss.map(w=>'<span class="no">'+esc(w.startsWith('?')?w:'✗ bảng giá: '+w)+'</span>').join('')+'</div>':'')+
+ '<div class="qc">'+(q.sl!=null?'<b style="font-size:20px">'+(q.calc||('× '+String(q.sl).replace('.',',')+' '+esc(it.dvt)))+'</b>':'<span class="warn">chưa có số lượng/kích thước — bấm để nhập</span>')+' • '+f(it.gia||0)+' đ/'+esc(it.dvt)+(Number(it.md)>0&&it.loai!=='CT'?' • mật độ '+f(it.md)+' cây/ha':'')+'</div></div>'}
 function showRes(r){RES=r;const e=$('sug');if(!r){e.innerHTML='';return}
+ if(r.mode==='ref'){const C=r.ref&&r.ref.mode==='ct'?r.ref.cands:null;
+  e.innerHTML=actBox(r.act,r.p)+(r.cands.length?'<div class="note">Bấm chọn đơn giá áp dụng (tên & quy cách thực tế giữ nguyên, đơn giá ghi vào Ghi chú):</div>'+r.cands.slice(0,6).map((it,j)=>refRow(it,j,r.p,C?C[j]:null)).join(''):'<div class="warn">Chưa nhận ra loại áp dụng giá — nói rõ hơn, vd «áp dụng giá cây nhãn đường kính tương đương»</div>');return}
+ if(r.mode==='unk'){e.innerHTML=actBox(r.act,r.p,'<div class="warn">Không có trong bảng giá — nói thêm «áp dụng giá cây … đường kính tương đương» hoặc chọn cây tham chiếu:</div>')+(r.cands.length?r.cands.map((it,j)=>refRow(it,j,r.p,null)).join(''):'<div class="note">Hãy nói đường kính để gợi ý cây tham chiếu.</div>');return}
  if(r.mode==='ct'){const f=x=>Number(x).toLocaleString('vi-VN');
-  e.innerHTML='<div class="note">Hiểu là: <b>'+esc(r.ten_tt||r.kindLabel||'tài sản')+'</b>'+(r.kindLabel?' → loại «'+esc(r.kindLabel)+'»':'')+(r.p.dims&&r.p.dims.length?' • kích thước '+r.p.dims.join(' × '):'')+(r.p.sl!=null?' • số lượng '+r.p.sl:'')+'</div><div class="note">Chọn dòng đơn giá phù hợp nhất (xếp theo độ khớp):</div>'+
-  r.cands.map((c,j)=>{const q=qtyFor(c.it,r.p);return '<div class="res ct'+(j===0?'':' alt')+'" onclick="pickCT('+j+')"><div class="nm">'+(j===0?'★ ':'')+esc(c.it.ten)+'</div><div class="qc">'+esc(c.it.quycach||'')+'</div>'+
-   '<div class="why">'+c.why.map(w=>'<span class="ok">✓ '+esc(w)+'</span>').join('')+c.miss.map(w=>'<span class="no">'+esc(w.startsWith('?')?w:'✗ bảng giá: '+w)+'</span>').join('')+'</div>'+
-   '<div class="qc">'+(q.sl!=null?'<b style="font-size:20px">'+(q.calc||('× '+String(q.sl).replace('.',',')+' '+esc(c.it.dvt)))+'</b>':'<span class="warn">chưa có số lượng/kích thước — bấm để nhập</span>')+' • '+f(c.it.gia||0)+' đ/'+esc(c.it.dvt)+'</div></div>'}).join('')+
-  '<div class="note">Không đúng? Nói lại rõ hơn (vd thêm «tường 110», «mái ngói») hoặc mở «Chọn bằng tay».</div>';return}
+  e.innerHTML=actBox(r.act,r.p)+'<div class="note">Bảng giá không có tên này — chọn đơn giá áp dụng (xếp theo độ khớp đặc điểm):</div>'+r.cands.map((c,j)=>refRow(c.it,j,r.p,c)).join('')+'<div class="note">Không đúng? Nói lại rõ hơn (vd thêm «tường 110», «mái ngói») hoặc nói «… áp dụng giá nhà tạm …».</div>';return}
+
  const p=r.p;const heard='<div class="note">Hiểu là: '+(r.fam?'<b>'+esc(r.list[0]?r.list[0].ten:r.fam)+'</b>':'<b style="color:#ff9d3c">chưa rõ tên cây/tài sản</b>')+(p.dk!=null?' • ĐK '+p.dk+' cm':'')+(p.cao!=null?' • cao '+p.cao+' m':'')+(p.sl!=null?' • số lượng <b>'+p.sl+'</b>':'')+'</div>';
  if(!r.fam){e.innerHTML=heard;return}
  if(r.list.length===1){const i=r.list[0];e.innerHTML=heard+'<div class="res"><div class="nm">'+esc(i.ten)+'</div><div class="qc">'+esc(i.quycach||'')+' • '+esc(i.dvt)+'</div>'+(p.sl!=null?'<div class="sl">× '+String(p.sl).replace('.',',')+'</div>':'<div class="warn">Chưa nghe số lượng — nói tiếp «số lượng …» hoặc bấm vào đây</div>')+'</div>';
   e.querySelector('.res').onclick=()=>{pick={sl:p.sl};askQty(i.id)};return}
  e.innerHTML=heard+'<div class="note">Có '+r.list.length+' quy cách — bấm chọn'+(p.sl!=null?' (số lượng '+p.sl+' sẽ lưu luôn)':'')+':</div><div class="chips">'+r.list.slice(0,20).map(i=>'<button onclick="pickChip('+i.id+')">'+esc(i.quycach||i.ten)+'<small>'+esc(i.dvt)+'</small></button>').join('')+'</div>'}
-function pickCT(j){const r=RES;const c=r.cands[j];const q=qtyFor(c.it,r.p);ctNote={ten_tt:r.ten_tt,mota:$('q').value,calc:q.calc};if(q.sl!=null)autoSave(c.it,q.sl,true);else{pick={sl:null};askQty(c.it.id)}}
-let ctNote=null;
+function pickRef(j){const r=RES;const it=r.mode==='ct'?r.cands[j].it:r.cands[j];const q=qtyFor(it,r.p);ACT={ten:r.act.ten,quycach:r.act.quycach,mota:$('q').value,calc:q.calc,asset:r.act.asset};if(q.sl!=null)autoSave(it,q.sl,true);else{pick={sl:null};askQty(it.id)}}
+let ACT=null;
 function pickChip(id){const sl=RES&&RES.p&&RES.p.sl;if(sl!=null){autoSave(PKG.danhmuc.muc.find(x=>x.id===id),sl)}else{pick={sl:null};askQty(id)}}
 let lastSaved=null;
 async function autoSave(it,sl,isCT){qitem=it;qedit=null;qv=String(sl);$('qnote').value='';
  // cộng dồn nếu đã có cùng loại trong thửa (tài sản thì không gộp)
- const ex=isCT?null:RECS.find(x=>x.k===key(cur)&&!x.xoa&&x.muc===it.id&&x.to_kd===SET.to&&!x.ghichu);
+ const ex=(isCT||ACT)?null:RECS.find(x=>x.k===key(cur)&&!x.xoa&&x.muc===it.id&&x.to_kd===SET.to&&!x.ghichu);
  let r;if(ex){ex.sl=Math.round((ex.sl+sl)*100)/100;ex.sua=new Date().toISOString();ex.sent=false;r=ex;lastSaved={r,add:sl}}
  else{r=newRec(it,sl);RECS.push(r);lastSaved={r,add:null}}
  await DB.put('rec',r);$('q').value='';showRes(null);renderTabs();renderItems();
- $('undot').textContent='Đã lưu: '+(r.ten_tt?r.ten_tt+' → ':'')+it.ten+((it.quycach||'').length<40&&it.quycach?' ('+it.quycach+')':'')+' × '+String(sl).replace('.',',')+' '+it.dvt+(ex?' (cộng dồn = '+String(r.sl).replace('.',',')+')':'');
+ $('undot').textContent='Đã lưu: '+r.ten+(r.quycach&&r.quycach.length<50?' ('+r.quycach+')':'')+' × '+String(sl).replace('.',',')+' '+it.dvt+(r.ap_ten?' • áp giá '+r.ap_ten:'')+(ex?' (cộng dồn = '+String(r.sl).replace('.',',')+')':'');
  $('undo').classList.add('on');clearTimeout(window._ut);window._ut=setTimeout(()=>$('undo').classList.remove('on'),7000)}
 async function undoLast(){if(!lastSaved)return;const {r,add}=lastSaved;if(add!=null){r.sl=Math.round((r.sl-add)*100)/100}else r.xoa=true;r.sent=false;await DB.put('rec',r);lastSaved=null;$('undo').classList.remove('on');renderItems();toast('Đã hoàn tác')}
-function newRec(it,sl){const n=ctNote;ctNote=null;return {ten_tt:n?n.ten_tt:'',mota:n?n.mota:'',cachtinh:n?n.calc:'',id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:it.id,ten:it.ten,quycach:it.quycach,dvt:it.dvt,nhom:it.nhom,to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null,sl,ghichu:'',sent:false}}
+function apNote(it){return 'Áp dụng đơn giá: '+it.ten+(it.quycach?' ('+it.quycach+')':'')+' – mã '+it.id}
+function newRec(it,sl){const n=ACT;ACT=null;const base={id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:it.id,dvt:it.dvt,nhom:it.nhom,to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null,sl,sent:false};
+ if(n)return Object.assign(base,{ten:n.ten,quycach:n.quycach,ap_ten:it.ten,ap_qc:it.quycach,ghichu:apNote(it),cachtinh:n.calc||'',mota:n.mota||''});
+ return Object.assign(base,{ten:it.ten,quycach:it.quycach,ghichu:'',cachtinh:'',mota:$('q').value||''})}
 // Micro: nhận dạng giọng nói của máy (cần mạng); không có thì dùng micro bàn phím
 let sr=null,srOn=false;
 function listen(){const S=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(srOn&&sr){sr.stop();return}
  if(!S){toast('Máy này không cho app nghe trực tiếp. Bấm vào ô bên dưới rồi bấm nút 🎤 trên BÀN PHÍM để nói — kết quả như nhau.',6000);$('q').focus();return}
  sr=new S();sr.lang='vi-VN';sr.interimResults=true;sr.continuous=false;sr.maxAlternatives=1;let fin='';
- sr.onresult=e=>{let t='';for(const x of e.results){t+=x[0].transcript;if(x.isFinal)fin=t}$('q').value=t;showRes(resolve(t))};
+ sr.onresult=e=>{let t='';for(const x of e.results){t+=x[0].transcript;if(x.isFinal)fin=t}$('q').value=t;showRes(resolveAll(t))};
  sr.onerror=e=>{const m={'not-allowed':'Máy đang CHẶN micro cho app. Vào Cài đặt điện thoại → Ứng dụng → Chrome/Safari → Quyền → Micro → Cho phép. Tạm thời: bấm vào ô bên dưới và dùng micro trên bàn phím.','service-not-allowed':'Máy không cho nghe trực tiếp — bấm vào ô bên dưới và dùng micro trên bàn phím.','network':'Mất sóng — nghe trực tiếp cần mạng. Dùng micro trên bàn phím (Gboard nói được khi mất sóng nếu đã tải tiếng Việt).','no-speech':'Chưa nghe thấy gì — bấm và nói lại.'};toast(m[e.error]||('Không nghe được ('+e.error+')'),7000);if(e.error!=='no-speech')$('q').focus()};
  sr.onend=()=>{srOn=false;$('mic').classList.remove('on');$('micl').textContent='🎤 BẤM ĐỂ NÓI';const t=fin||$('q').value;if(t)commitText(t,false)};
  try{sr.start();srOn=true;$('mic').classList.add('on');$('micl').textContent='● ĐANG NGHE… (bấm để dừng)'}catch(x){toast('Không bật được micro');$('q').focus()}}
 let qv='',qitem=null,qedit=null;
-function askQty(id,edit){qitem=PKG.danhmuc.muc.find(x=>x.id===id);qedit=edit||null;$('qn').textContent=qitem.ten;$('qq2')&&0;$('qq').textContent=(qitem.quycach?qitem.quycach+' • ':'')+'ĐVT: '+qitem.dvt;
- qv=edit?String(edit.sl):(pick&&pick.sl!=null?String(pick.sl):'1');$('qnote').value=edit?edit.ghichu||'':'';$('slv').textContent=qv.replace('.',',');qfresh=!edit&&!(pick&&pick.sl!=null);show('qty')}
+function askQty(id,edit){qitem=PKG.danhmuc.muc.find(x=>x.id===id);qedit=edit||null;const A=edit&&edit.ap_ten?{ten:edit.ten,quycach:edit.quycach}:ACT;$('qn').textContent=A?A.ten:qitem.ten;$('qq').textContent=A?((A.quycach?A.quycach+' • ':'')+'áp giá: '+qitem.ten+' ('+(qitem.quycach||'')+') • ĐVT: '+qitem.dvt):((qitem.quycach?qitem.quycach+' • ':'')+'ĐVT: '+qitem.dvt);
+ qv=edit?String(edit.sl):(pick&&pick.sl!=null?String(pick.sl):'1');$('qnote').value=edit?((edit.ghichu||'').replace(/^Áp dụng đơn giá:[^;]*;?\s*/,'')):'';$('slv').textContent=qv.replace('.',',');qfresh=!edit&&!(pick&&pick.sl!=null);show('qty')}
 let qfresh=false;
 function padKey(k){if(qfresh&&k!=='⌫'){qv='';qfresh=false}if(k==='⌫')qv=qv.slice(0,-1);else if(k===','){if(!qv.includes('.'))qv=(qv||'0')+'.'}else qv=(qv==='0'?'':qv)+k;$('slv').textContent=(qv||'0').replace('.',',')}
 function step(d){qfresh=false;let v=parseFloat(qv)||0;v=Math.max(0,Math.round((v+d)*100)/100);qv=String(v);$('slv').textContent=qv.replace('.',',')}
 async function saveQty(){const sl=parseFloat(qv);if(!(sl>0)){toast('Nhập số lượng');return}
  // cùng thửa + cùng loại đã có -> cộng dồn
- let r=qedit;if(!r){const ex=RECS.find(x=>x.k===key(cur)&&!x.xoa&&x.muc===qitem.id&&x.to_kd===SET.to&&!($('qnote').value.trim()));if(ex&&!ex.ghichu&&confirm(qitem.ten+' '+(qitem.quycach||'')+' đã có '+String(ex.sl).replace('.',',')+'. Cộng thêm '+String(sl).replace('.',',')+'?')){ex.sl=Math.round((ex.sl+sl)*100)/100;ex.sua=new Date().toISOString();ex.sent=false;await DB.put('rec',ex);done(ex);return}}
- r=r||{ten_tt:ctNote?ctNote.ten_tt:'',mota:ctNote?ctNote.mota:'',id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:qitem.id,ten:qitem.ten,quycach:qitem.quycach,dvt:qitem.dvt,nhom:qitem.nhom,
-  to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null};
- r.sl=sl;r.ghichu=$('qnote').value.trim();r.sent=false;if(qedit)r.sua=new Date().toISOString();
+ let r=qedit;if(!r&&!ACT){const ex=RECS.find(x=>x.k===key(cur)&&!x.xoa&&x.muc===qitem.id&&x.to_kd===SET.to&&!($('qnote').value.trim()));if(ex&&!ex.ghichu&&confirm(qitem.ten+' '+(qitem.quycach||'')+' đã có '+String(ex.sl).replace('.',',')+'. Cộng thêm '+String(sl).replace('.',',')+'?')){ex.sl=Math.round((ex.sl+sl)*100)/100;ex.sua=new Date().toISOString();ex.sent=false;await DB.put('rec',ex);done(ex);return}}
+ const isNew=!r;r=r||newRec(qitem,sl);
+ r.sl=sl;{const u=$('qnote').value.trim();if(isNew){if(u)r.ghichu=(r.ghichu?r.ghichu+'; ':'')+u}else r.ghichu=(r.ap_ten?apNote(PKG.danhmuc.muc.find(x=>x.id===r.muc)||{ten:r.ap_ten,quycach:r.ap_qc,id:r.muc})+(u?'; '+u:''):u)}r.sent=false;if(qedit)r.sua=new Date().toISOString();
  await DB.put('rec',r);if(!qedit)RECS.push(r);done(r)}
-function done(r){ctNote=null;hide('qty');$('q').value='';showRes(null);renderTabs();renderItems();toast('Đã lưu: '+r.ten+' × '+String(r.sl).replace('.',','))}
+function done(r){ACT=null;hide('qty');$('q').value='';showRes(null);renderTabs();renderItems();toast('Đã lưu: '+r.ten+' × '+String(r.sl).replace('.',','))}
 function renderItems(){const it=RECS.filter(r=>r.k===key(cur)&&!r.xoa);$('cnt').textContent=it.length+' mục';
- $('items').innerHTML=it.map(r=>'<div class="it"><div class="n" onclick="editRec(\''+r.id+'\')">'+(r.ten_tt?'<b>'+esc(r.ten_tt)+'</b> → ':'')+esc(r.ten)+' <small>'+esc(r.quycach||'')+' • '+esc(r.dvt)+(r.ghichu?' • '+esc(r.ghichu):'')+'</small></div><button class="pm" onclick="bump(\''+r.id+'\',-1)">−</button><div class="q">'+String(r.sl).replace('.',',')+'</div><button class="pm" onclick="bump(\''+r.id+'\',1)">+</button><button class="x" onclick="delRec(\''+r.id+'\')">✕</button></div>').join('')||'<div class="note">Chưa có mục nào. Bấm 🎤 rồi nói, vd «mít đường kính 30 số lượng 6 cây».</div>';status()}
+ $('items').innerHTML=it.map(r=>{const ten=r.ten_tt&&!r.ap_ten?r.ten_tt:r.ten;return '<div class="it"><div class="n" onclick="editRec(\''+r.id+'\')"><b>'+esc(ten)+'</b> <small>'+esc(r.quycach||'')+' • '+esc(r.dvt)+(r.cachtinh?' • '+esc(r.cachtinh):'')+'</small>'+(r.ghichu?'<small class="gc">'+esc(r.ghichu)+'</small>':'')+'</div><button class="pm" onclick="bump(\''+r.id+'\',-1)">−</button><div class="q">'+String(r.sl).replace('.',',')+'</div><button class="pm" onclick="bump(\''+r.id+'\',1)">+</button><button class="x" onclick="delRec(\''+r.id+'\')">✕</button></div>'}).join('')||'<div class="note">Chưa có mục nào. Bấm 🎤 rồi nói, vd «mít đường kính 30 số lượng 6 cây» hoặc «vàng tâm đường kính 20 số lượng 3 cây áp dụng giá cây nhãn đường kính tương đương».</div>';status()}
 async function bump(id,d){const r=RECS.find(x=>x.id===id);const v=Math.round((r.sl+d)*100)/100;if(v<=0){delRec(id);return}r.sl=v;r.sua=new Date().toISOString();r.sent=false;await DB.put('rec',r);renderItems()}
 function editRec(id){const r=RECS.find(x=>x.id===id);pick={sl:null};askQty(r.muc,r)}
 async function delRec(id){const r=RECS.find(x=>x.id===id);if(!confirm('Xóa «'+r.ten+' '+(r.quycach||'')+'» ?'))return;r.xoa=true;r.sent=false;await DB.put('rec',r);renderItems();renderTabs()}
@@ -1149,7 +1186,7 @@ async function openMenu(){const nA=(await DB.all('audio')).length;const un=RECS.
  if(SET.chinh){const by={};for(const k in OTHER)by[OTHER[k]]=(by[OTHER[k]]||0)+1;
   h+='<h3 style="margin-top:22px">★ Chủ trì</h3><button class="btn pri" onclick="pickFile(\'other\')">Nạp kết quả các tổ (file nhận qua Zalo)</button><div class="note">'+(Object.keys(by).length?Object.entries(by).map(([t,n])=>esc(t)+': '+n+' thửa').join(' • '):'Chưa nạp kết quả tổ nào.')+'<br>Thửa tổ khác đã đếm hiện màu xanh dương.</div><button class="btn" onclick="SET.chinh=false;DB.set(\'set\',SET);calcAsg();restyle();openMenu()">Thoát chế độ chủ trì</button>'}
  else h+='<h3 style="margin-top:22px">Chế độ chủ trì</h3><input id="mql" placeholder="Mã quản lý" autocomplete="off"><button class="btn" onclick="setQL()">Mở chế độ chủ trì</button>';
- h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (6)</div>';$('menub').innerHTML=h;show('menu')}
+ h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (7)</div>';$('menub').innerHTML=h;show('menu')}
 // ===== Mã dự án & tải dữ liệu đã mã hóa =====
 function normMa(m){return (m||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
@@ -1186,7 +1223,7 @@ function resFile(){const out={loai:'MRIN_KQ_KIEMDEM',phienban:1,duan:PKG?PKG.dua
 async function exportRes(mode){if(!SET.to){toast('Hãy đặt tên tổ');return}if(!RECS.length){toast('Chưa có số liệu');return}const f=resFile();let ok;
  if(mode==='share')ok=await shareFiles([f],f.name);else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove();ok=true}
  if(ok){for(const r of RECS){if(!r.sent){r.sent=true;await DB.put('rec',r)}}status();toast(mode==='share'?'Đã gửi '+RECS.filter(r=>!r.xoa).length+' mục':'Đã lưu '+f.name+' vào thư mục Tải về',3500);openMenu()}}
-async function exportCsv(){const all=RECS.filter(r=>!r.xoa);const csv='﻿Tờ;Thửa;Chủ sử dụng;Xứ đồng;Nhóm;Tên tài sản;Quy cách;ĐVT;Số lượng;Ghi chú;Tổ;Người đếm;Thời gian\n'+all.map(r=>[r.to,r.thua,r.chu,r.xd,r.nhom,r.ten,r.quycach,r.dvt,String(r.sl).replace('.',','),r.ghichu,r.to_kd,r.nguoi,new Date(r.tg).toLocaleString('vi-VN')].map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(';')).join('\n');
+async function exportCsv(){const all=RECS.filter(r=>!r.xoa);const csv='﻿Tờ;Thửa;Chủ sử dụng;Xứ đồng;Nhóm;Tên tài sản;Quy cách;ĐVT;Số lượng;Cách tính;Ghi chú;Tổ;Người đếm;Thời gian\n'+all.map(r=>[r.to,r.thua,r.chu,r.xd,r.nhom,r.ap_ten?r.ten:(r.ten_tt||r.ten),r.quycach,r.dvt,String(r.sl).replace('.',','),r.cachtinh||'',r.ghichu,r.to_kd,r.nguoi,new Date(r.tg).toLocaleString('vi-VN')].map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(';')).join('\n');
  await shareFiles([new File([csv],'KD_'+nd(SET.to).replace(/ /g,'')+'_'+tsName()+'.csv',{type:'text/csv'})],'Bảng kiểm đếm')}
 async function exportAudio(){const a=await DB.all('audio');if(!a.length){toast('Chưa có file ghi âm');return}
  const ext=t=>t.includes('mp4')?'m4a':(t.includes('ogg')?'ogg':'webm');
