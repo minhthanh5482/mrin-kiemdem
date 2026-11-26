@@ -988,7 +988,7 @@ async function openMenu(){const nA=(await DB.all('audio')).length;const un=RECS.
  if(SET.chinh){const by={};for(const k in OTHER)by[OTHER[k]]=(by[OTHER[k]]||0)+1;
   h+='<h3 style="margin-top:22px">★ Chủ trì</h3><button class="btn pri" onclick="pickFile(\'other\')">Nạp kết quả các tổ (file nhận qua Zalo)</button><div class="note">'+(Object.keys(by).length?Object.entries(by).map(([t,n])=>esc(t)+': '+n+' thửa').join(' • '):'Chưa nạp kết quả tổ nào.')+'<br>Thửa tổ khác đã đếm hiện màu xanh dương.</div><button class="btn" onclick="SET.chinh=false;DB.set(\'set\',SET);calcAsg();restyle();openMenu()">Thoát chế độ chủ trì</button>'}
  else h+='<h3 style="margin-top:22px">Chế độ chủ trì</h3><input id="mql" placeholder="Mã quản lý" autocomplete="off"><button class="btn" onclick="setQL()">Mở chế độ chủ trì</button>';
- h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (2)</div>';$('menub').innerHTML=h;show('menu')}
+ h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (3)</div>';$('menub').innerHTML=h;show('menu')}
 // ===== Mã dự án & tải dữ liệu đã mã hóa =====
 function normMa(m){return (m||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
@@ -1048,6 +1048,12 @@ $('pad').innerHTML=['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>'<
  try{await DB.open();SET=Object.assign(SET,await DB.get('set')||{});OTHER=await DB.get('other')||{};RECS=await DB.all('rec');PKG=await DB.get('pkg')||null}catch(e){toast('Máy không cho lưu dữ liệu — hãy mở bằng Chrome/Safari thường (không ẩn danh)',5000)}
  if(PKG)drawPkg();else{status();setTimeout(()=>{openMenu();toast('Bước đầu: đặt tên tổ và nhập mã dự án',4000)},400)}
  if(SET.ma)setTimeout(()=>syncPkg(false),1500);
+ // tự kiểm tra dữ liệu mới: khi có mạng trở lại, khi mở lại app, và 30 phút/lần
+ window.addEventListener('online',()=>syncPkg(false));
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncPkg(false)});
+ setInterval(()=>syncPkg(false),30*60*1000);
+ // có bản phần mềm mới -> tự tải lại trang
+ if('serviceWorker' in navigator){let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!rl){rl=true;location.reload()}})}
  watch();
  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
