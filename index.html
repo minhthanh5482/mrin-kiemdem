@@ -755,7 +755,7 @@ details summary{margin-top:14px;color:var(--sub);font-size:15px;padding:8px 0}
 <div id="top"><b>MRIN</b><span style="color:#fff">Kiểm đếm</span><span class="sp"></span><div id="st"></div><button class="ib" onclick="openMenu()">☰</button></div>
 <div id="map"></div>
 <div id="findbar"><button onclick="whereAmI()">Tôi đang ở thửa nào?</button></div>
-<div id="fab"><button class="fb" title="Vị trí của tôi" onclick="locate(true)">◎</button><button class="fb" title="Tìm thửa" onclick="openSearch()" style="font-size:13px;font-weight:700">Tìm<br>thửa</button></div>
+<div id="fab"><button class="fb" title="Vị trí của tôi" onclick="locate(true)">◎</button><button class="fb" title="Tìm thửa" onclick="openSearch()" style="font-size:13px;font-weight:700">Tìm<br>thửa</button><button class="fb" title="Thửa chưa có trên bản đồ" onclick="openTam()" style="font-size:12px;font-weight:700">Thửa<br>tạm</button></div>
 
 <div class="sheet" id="sh"></div>
 
@@ -819,11 +819,11 @@ const DB={db:null,
  put(s,v){return new Promise(ok=>{const r=this.tx(s,'readwrite').put(v);r.onsuccess=()=>ok();r.onerror=()=>ok()})},
  del(s,k){return new Promise(ok=>{const r=this.tx(s,'readwrite').delete(k);r.onsuccess=()=>ok();r.onerror=()=>ok()})}
 };
-let PKG=null, SET={to:'',nguoi:''}, RECS=[], OTHER={}, map, layer, ranhL, me=null, meC=null, cur=null, pick=null, lastPos=null;
+let TAM=[], ALLR={}, ALLTAM={}, PKG=null, SET={to:'',nguoi:''}, RECS=[], OTHER={}, map, layer, ranhL, me=null, meC=null, cur=null, pick=null, lastPos=null;
 const $=id=>document.getElementById(id);
 function toast(t,ms){const e=$('toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms||2500)}
 function show(id){$(id).classList.add('on')} function hide(id){$(id).classList.remove('on')}
-const key=p=>p.to+'/'+p.thua;
+const key=p=>p.ma||(p.to+'/'+p.thua);
 function nd(s){return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/[^a-z0-9.,]+/g,' ').trim()}
 function fmt(n){return n==null?'—':Number(n).toLocaleString('vi-VN',{maximumFractionDigits:2})}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
@@ -914,7 +914,7 @@ function doSearch(v){const s=nd(v);if(!s){$('sres').innerHTML='';return}const m=
 
 // ===== Kiểm đếm (bấm chọn, không cần micro) =====
 let tab='hay';
-function startKD(){if(!SET.to){toast('Hãy đặt tên tổ trước khi kiểm đếm',3500);openMenu();return}hide('sh');$('kdt').textContent='Tờ '+cur.to+' • Thửa '+cur.thua+' • '+(cur.chu||'');$('q').value='';showRes(null);
+function startKD(){if(!SET.to){toast('Hãy đặt tên tổ trước khi kiểm đếm',3500);openMenu();return}hide('sh');$('kdt').textContent=(cur.tam?'THỬA TẠM '+cur.ma:'Tờ '+cur.to+' • Thửa '+cur.thua)+' • '+(cur.chu||'');$('q').value='';showRes(null);
  $('rbtn').style.display=SET.ghiam?'':'none';renderTabs();renderItems();show('kd')}
 function closeKD(){if(recOn)toggleRec();hide('kd');restyle()}
 function groups(){const g=[];for(const m of PKG.danhmuc.muc)if(!g.includes(m.nhom))g.push(m.nhom);return g}
@@ -1124,7 +1124,7 @@ async function autoSave(it,sl,isCT){qitem=it;qedit=null;qv=String(sl);$('qnote')
  $('undo').classList.add('on');clearTimeout(window._ut);window._ut=setTimeout(()=>$('undo').classList.remove('on'),7000)}
 async function undoLast(){if(!lastSaved)return;const {r,add}=lastSaved;if(add!=null){r.sl=Math.round((r.sl-add)*100)/100}else r.xoa=true;r.sent=false;await DB.put('rec',r);lastSaved=null;$('undo').classList.remove('on');renderItems();toast('Đã hoàn tác')}
 function apNote(it){return 'Áp dụng đơn giá: '+it.ten+(it.quycach?' ('+it.quycach+')':'')+' – mã '+it.id}
-function newRec(it,sl){const n=ACT;ACT=null;const base={id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,muc:it.id,dvt:it.dvt,nhom:it.nhom,to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null,sl,sent:false};
+function newRec(it,sl){const n=ACT;ACT=null;const base={id:uid(),k:key(cur),to:cur.to,thua:cur.thua,chu:cur.chu,xd:cur.xd,tam:cur.tam?cur.ma:undefined,muc:it.id,dvt:it.dvt,nhom:it.nhom,to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null,sl,sent:false};
  if(n)return Object.assign(base,{ten:n.ten,quycach:n.quycach,ap_ten:it.ten,ap_qc:it.quycach,ghichu:apNote(it),cachtinh:n.calc||'',mota:n.mota||''});
  return Object.assign(base,{ten:it.ten,quycach:it.quycach,ghichu:'',cachtinh:'',mota:$('q').value||''})}
 // Micro: nhận dạng giọng nói của máy (cần mạng); không có thì dùng micro bàn phím
@@ -1155,7 +1155,7 @@ function renderItems(){const it=RECS.filter(r=>r.k===key(cur)&&!r.xoa);$('cnt').
 async function bump(id,d){const r=RECS.find(x=>x.id===id);const v=Math.round((r.sl+d)*100)/100;if(v<=0){delRec(id);return}r.sl=v;r.sua=new Date().toISOString();r.sent=false;await DB.put('rec',r);renderItems()}
 function editRec(id){const r=RECS.find(x=>x.id===id);pick={sl:null};askQty(r.muc,r)}
 async function delRec(id){const r=RECS.find(x=>x.id===id);if(!confirm('Xóa «'+r.ten+' '+(r.quycach||'')+'» ?'))return;r.xoa=true;r.sent=false;await DB.put('rec',r);renderItems();renderTabs()}
-async function doneParcel(){SET.xong=SET.xong||{};SET.xong[key(cur)]=new Date().toISOString();await DB.set('set',SET);toast('Đã đánh dấu xong thửa '+cur.thua);closeKD()}
+async function doneParcel(){SET.xong=SET.xong||{};SET.xong[key(cur)]=new Date().toISOString();await DB.set('set',SET);toast('Đã đánh dấu xong thửa '+(cur.tam?cur.ma:cur.thua));closeKD()}
 
 // ===== Ghi âm biên bản (tùy chọn, bật trong ☰) =====
 let mr=null,recOn=false,chunks=[],recT0=0,recTimer=null;
@@ -1177,6 +1177,7 @@ async function openMenu(){const nA=(await DB.all('audio')).length;const un=RECS.
  (SET.ma?'<button class="btn pri" onclick="syncPkg(true)">Kiểm tra bản dữ liệu mới</button><div class="note" id="syn">Mở app khi có mạng là tự kiểm tra.</div><button class="btn" onclick="SET.ma=\'\';DB.set(\'set\',SET);openMenu()">Đổi mã dự án</button>'
   :'<input id="mma" placeholder="Nhập mã dự án (chủ trì gửi qua Zalo)" autocapitalize="characters" autocomplete="off" style="margin-top:6px"><button class="btn pri" onclick="setMa()">Tải dữ liệu</button><div class="note" id="syn"></div>')+
  '<button class="btn" onclick="pickFile(\'pkg\')">Nạp từ file (khi không có mạng)</button>'+
+ '<h3 style="margin-top:22px">Thửa chưa có trên bản đồ</h3><div class="note">'+TAM.length+' thửa tạm do tổ nhập tay (không đưa vào phương án cho tới khi máy tính ghép với thửa chính thức).</div><button class="btn" onclick="hide(\'menu\');openTam()">Thửa tạm: thêm / tiếp tục kiểm đếm</button>'+
  '<h3 style="margin-top:22px">2. Gửi kết quả kiểm đếm</h3><div class="note">'+tot+' mục đã đếm • '+(un?'<b style="color:#F5C84C">'+un+' mục chưa gửi</b>':'đã gửi hết')+'</div>'+
  '<button class="btn pri" onclick="exportRes(\'share\')">Gửi kết quả (chọn Zalo)</button><div class="note">Mỗi lần gửi là gửi TOÀN BỘ số liệu của tổ, gửi lại nhiều lần không bị trùng.</div>'+
  '<button class="btn" onclick="exportRes(\'save\')">Lưu file kết quả vào máy</button><button class="btn" onclick="exportCsv()">Xuất bảng xem (Excel/CSV)</button>'+
@@ -1184,9 +1185,10 @@ async function openMenu(){const nA=(await DB.all('audio')).length;const un=RECS.
  '<h3 style="margin-top:22px">3. Dùng khi mất sóng</h3><button class="btn" onclick="cacheTiles()">Tải trước ảnh nền vùng đang xem</button><div class="note" id="cst">Phóng bản đồ tới khu sắp đi rồi bấm.</div>'+
  '<label style="display:flex;gap:10px;align-items:center;margin-top:14px"><input type="checkbox" style="width:24px;height:24px" '+(SET.ghiam?'checked':'')+' onchange="SET.ghiam=this.checked;DB.set(\'set\',SET)"> Hiện nút ghi âm (nếu máy cho phép)</label>';
  if(SET.chinh){const by={};for(const k in OTHER)by[OTHER[k]]=(by[OTHER[k]]||0)+1;
-  h+='<h3 style="margin-top:22px">★ Chủ trì</h3><button class="btn pri" onclick="pickFile(\'other\')">Nạp kết quả các tổ (file nhận qua Zalo)</button><div class="note">'+(Object.keys(by).length?Object.entries(by).map(([t,n])=>esc(t)+': '+n+' thửa').join(' • '):'Chưa nạp kết quả tổ nào.')+'<br>Thửa tổ khác đã đếm hiện màu xanh dương.</div><button class="btn" onclick="SET.chinh=false;DB.set(\'set\',SET);calcAsg();restyle();openMenu()">Thoát chế độ chủ trì</button>'}
+  const nR=Object.values(ALLR).filter(r=>!r.xoa).length,nT=Object.keys(ALLTAM).length;
+  h+='<h3 style="margin-top:22px">★ Chủ trì</h3><button class="btn pri" onclick="pickFile(\'other\')">Nạp kết quả các tổ (file nhận qua Zalo)</button><div class="note">Đã gom: <b>'+nR+'</b> mục của các tổ'+(nT?' • '+nT+' thửa tạm':'')+'<br>'+(Object.keys(by).length?Object.entries(by).map(([t,n])=>esc(t)+': '+n+' thửa').join(' • '):'Chưa nạp kết quả tổ nào.')+'<br>Thửa tổ khác đã đếm hiện màu xanh dương.</div><button class="btn pri" onclick="guiMayTinh(\'share\')">⇪ Gửi về máy tính (Google Drive)</button><div class="note">Bấm → chọn <b>Drive</b> → thư mục <b>MRIN_KIEM_DEM › 2_KET_QUA_KIEM_DEM</b> → Lưu. Tool trên máy tính tự lấy về để lập phương án. Mỗi lần gửi là gửi toàn bộ số liệu đã gom (của mọi tổ + của máy này).</div><button class="btn" onclick="guiMayTinh(\'save\')">Lưu file tổng hợp vào máy</button><button class="btn" onclick="SET.chinh=false;DB.set(\'set\',SET);calcAsg();restyle();openMenu()">Thoát chế độ chủ trì</button>'}
  else h+='<h3 style="margin-top:22px">Chế độ chủ trì</h3><input id="mql" placeholder="Mã quản lý" autocomplete="off"><button class="btn" onclick="setQL()">Mở chế độ chủ trì</button>';
- h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 26/11/2026 (7)</div>';$('menub').innerHTML=h;show('menu')}
+ h+='<div class="note" style="margin-top:24px">MRIN Kiểm đếm • phiên bản 27/11/2026 (8)</div>';$('menub').innerHTML=h;show('menu')}
 // ===== Mã dự án & tải dữ liệu đã mã hóa =====
 function normMa(m){return (m||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
@@ -1210,7 +1212,7 @@ async function syncPkg(manual,maIn){const m=maIn||SET.ma;if(!m||syncing)return f
  catch(e){say(navigator.onLine===false?'Không có mạng — dùng dữ liệu đang có':'Không tải được: '+e.message);return false}finally{syncing=false}}
 async function saveSet(){SET.to=$('mto').value.trim();SET.nguoi=$('mng').value.trim();await DB.set('set',SET);calcAsg();restyle();toast('Đã lưu');openMenu()}
 let fmode='pkg';function pickFile(m){fmode=m;$('fin').multiple=(m==='other');$('fin').value='';$('fin').click()}
-$('fin').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;if(fmode==='other'){let n=0,t=new Set();for(const f of fs){try{const j=JSON.parse(await f.text());if(j.loai!=='MRIN_KQ_KIEMDEM')continue;t.add(j.to_kd);for(const r of j.muc){if(!r.xoa&&r.to_kd!==SET.to){OTHER[r.k]=r.to_kd;n++}}for(const k of (j.xong||[]))OTHER[k]=OTHER[k]||j.to_kd}catch(x){}}await DB.set('other',OTHER);restyle();toast('Đã nạp '+fs.length+' file • '+[...t].join(', ')+' • '+n+' mục',4000);openMenu();return}const f=fs[0];try{const j=JSON.parse(await f.text());
+$('fin').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;if(fmode==='other'){let n=0,t=new Set();for(const f of fs){try{const j=JSON.parse(await f.text());if(j.loai!=='MRIN_KQ_KIEMDEM')continue;t.add(j.to_kd);gomKQ(j);for(const r of j.muc){if(!r.xoa&&r.to_kd!==SET.to){OTHER[r.k]=r.to_kd;n++}}for(const k of (j.xong||[]))OTHER[k]=OTHER[k]||j.to_kd}catch(x){}}await DB.set('other',OTHER);await DB.set('allr',ALLR);await DB.set('alltam',ALLTAM);restyle();toast('Đã nạp '+fs.length+' file • '+[...t].join(', ')+' • '+n+' mục',4000);openMenu();return}const f=fs[0];try{const j=JSON.parse(await f.text());
  if(fmode==='pkg'){if(j.loai!=='MRIN_KIEMDEM')throw Error('Không phải gói dữ liệu MRIN');PKG=j;await DB.set('pkg',j);drawPkg();hide('menu');toast('Đã nạp '+j.thua.length+' thửa')}
  else{if(j.loai!=='MRIN_KQ_KIEMDEM')throw Error('Không phải file kết quả kiểm đếm');let n=0;for(const r of j.muc){if(!r.xoa&&r.to_kd!==SET.to){OTHER[r.k]=r.to_kd;n++}}for(const k of (j.xong||[]))OTHER[k]=OTHER[k]||j.to_kd;await DB.set('other',OTHER);restyle();hide('menu');toast('Tổ '+j.to_kd+': '+n+' mục')}
 }catch(err){toast('Lỗi file: '+err.message,4000)}};
@@ -1218,7 +1220,7 @@ function tsName(){const d=new Date(),p=n=>String(n).padStart(2,'0');return p(d.g
 async function shareFiles(files,title){
  if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title});return true}catch(e){if(e.name==='AbortError')return false}}
  for(const f of files){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove()}return true}
-function resFile(){const out={loai:'MRIN_KQ_KIEMDEM',phienban:1,duan:PKG?PKG.duan:'',goi:PKG?PKG.ngay:'',to_kd:SET.to,nguoi:SET.nguoi,xuat_luc:new Date().toISOString(),xong:Object.keys(SET.xong||{}),muc:RECS.map(r=>{const o={...r};delete o.sent;return o})};
+function resFile(){const out={loai:'MRIN_KQ_KIEMDEM',phienban:1,duan:PKG?PKG.duan:'',goi:PKG?PKG.ngay:'',to_kd:SET.to,nguoi:SET.nguoi,xuat_luc:new Date().toISOString(),xong:Object.keys(SET.xong||{}),tam:TAM,muc:RECS.map(r=>{const o={...r};delete o.sent;return o})};
  return new File([JSON.stringify(out)],'KD_'+nd(SET.to).replace(/ /g,'')+'_'+tsName()+'.json',{type:'application/json'})}
 async function exportRes(mode){if(!SET.to){toast('Hãy đặt tên tổ');return}if(!RECS.length){toast('Chưa có số liệu');return}const f=resFile();let ok;
  if(mode==='share')ok=await shareFiles([f],f.name);else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove();ok=true}
@@ -1238,12 +1240,50 @@ async function cacheTiles(){if(!('caches' in window)){toast('Máy không hỗ tr
  for(let i=0;i<urls.length;i+=8){await Promise.all(urls.slice(i,i+8).map(async u=>{try{if(!(await c.match(u))){const r=await fetch(u,{mode:'cors'});if(r.ok)await c.put(u,r);else er++}}catch(e){er++}n++}));$('cst').textContent='Đã tải '+n+'/'+urls.length+(er?' • lỗi '+er:'')}
  toast('Xong: ảnh nền vùng này dùng được khi mất sóng',3500)}
 
+
+// ===== Thửa chưa có trên bản đồ (kiểm đếm thủ công) =====
+function tamCode(){return nd(SET.to||'TO').replace(/ /g,'').toUpperCase().slice(0,8)}
+function openTam(){if(!PKG){openMenu();toast('Hãy nạp gói dữ liệu trước');return}if(!SET.to){toast('Hãy đặt tên tổ trước',3500);openMenu();return}
+ const L=TAM.slice().reverse().map(t=>{const n=RECS.filter(r=>r.k===t.ma&&!r.xoa).length;return '<div class="cand" onclick="openTamK(\''+t.ma+'\')"><b>'+esc(t.ma)+'</b> <span class="tag">'+n+' mục</span><br><small>'+esc(t.chu)+(t.doi?' • Đội '+esc(t.doi):'')+(t.xd?' • '+esc(t.xd):'')+(t.dt_khai?' • '+fmt(t.dt_khai)+' m² (khai)':'')+'</small></div>'}).join('');
+ sheet('<h3>Thửa chưa có trên bản đồ</h3><div class="note">Dùng khi dân báo thửa bị thu hồi nhưng bản đồ chưa có. Tool tự gán <b>mã thửa tạm</b>; thửa tạm KHÔNG vào phương án cho tới khi máy tính ghép với tờ/thửa chính thức.</div>'+
+ '<button class="btn pri" onclick="formTam()">＋ Thêm thửa tạm mới</button>'+(L?'<h3 style="margin-top:14px">Thửa tạm đã nhập</h3>'+L:'')+'<button class="btn" onclick="hide(\'sh\')">Đóng</button>')}
+const F=(l,i)=>'<div style="flex:1;margin-top:8px"><div class="note" style="margin:0 0 3px">'+l+'</div>'+i+'</div>';
+function formTam(ma){const t=ma?TAM.find(x=>x.ma===ma):{};const v=k=>esc(t[k]==null?'':t[k]);
+ sheet('<h3>'+(ma?'Sửa thửa tạm '+esc(ma):'Thửa tạm mới')+'</h3>'+
+ F('Tên chủ sử dụng *','<input id="tchu" placeholder="bắt buộc" value="'+v('chu')+'">')+
+ '<div class="row">'+F('Đội','<input id="tdoi" value="'+v('doi')+'">')+F('Xứ đồng','<input id="txd" value="'+v('xd')+'">')+'</div>'+
+ '<div class="row">'+F('Tờ GCN','<input id="ttog" value="'+v('to_gcn')+'">')+F('Số thửa GCN','<input id="tthg" value="'+v('thua_gcn')+'">')+'</div>'+
+ F('Diện tích dân khai (m²)','<input id="tdt" inputmode="decimal" value="'+v('dt_khai')+'">')+
+ F('Mô tả vị trí','<input id="tvt" placeholder="giáp thửa nào, gần mốc nào…" value="'+v('vitri')+'">')+
+ '<div class="note" id="tgps">'+(t.lat?'Tọa độ đã lưu: '+t.lat.toFixed(6)+', '+t.lng.toFixed(6):(lastPos?'Sẽ lưu tọa độ chỗ đang đứng (±'+Math.round(lastPos.accuracy||0)+' m)':'Chưa bắt được GPS — vẫn lưu được, nên đứng trong thửa khi lưu'))+'</div>'+
+ '<button class="btn pri" onclick="saveTam(\''+(ma||'')+'\')">'+(ma?'Lưu':'Lưu & bắt đầu kiểm đếm')+'</button>'+(ma&&!t.lat?'':'')+'<button class="btn" onclick="openTam()">Quay lại</button>')}
+async function saveTam(ma){const g=id=>$(id).value.trim();const chu=g('tchu');if(!chu){toast('Nhập tên chủ sử dụng');return}
+ const dt=parseFloat(g('tdt').replace(',','.'));let t=ma?TAM.find(x=>x.ma===ma):null;
+ if(!t){const n=TAM.filter(x=>x.to_kd===SET.to).length+1;t={ma:'TAM-'+tamCode()+'-'+String(n).padStart(3,'0')+'-'+Math.random().toString(36).slice(2,5).toUpperCase(),tam:true,to:'',thua:'',to_kd:SET.to,nguoi:SET.nguoi,tg:new Date().toISOString(),lat:lastPos?lastPos.latitude:null,lng:lastPos?lastPos.longitude:null,acc:lastPos?lastPos.accuracy:null};TAM.push(t)}
+ Object.assign(t,{chu,doi:g('tdoi'),xd:g('txd'),to_gcn:g('ttog'),thua_gcn:g('tthg'),dt_khai:isNaN(dt)?null:dt,vitri:g('tvt'),sua:new Date().toISOString()});
+ for(const r of RECS)if(r.k===t.ma){r.chu=t.chu;r.xd=t.xd;r.sent=false;await DB.put('rec',r)}
+ await DB.set('tam',TAM);status();toast('Đã lưu '+t.ma);if(ma){openTam();return}cur=t;startKD()}
+function openTamK(ma){const t=TAM.find(x=>x.ma===ma);if(!t)return;const n=RECS.filter(r=>r.k===ma&&!r.xoa).length;cur=t;
+ sheet('<h3>'+esc(ma)+'</h3><div class="kv"><span>Chủ sử dụng</span><span><b>'+esc(t.chu)+'</b></span><span>Đội</span><span>'+esc(t.doi||'—')+'</span><span>Xứ đồng</span><span>'+esc(t.xd||'—')+'</span><span>Tờ/thửa GCN</span><span>'+esc((t.to_gcn||'—')+' / '+(t.thua_gcn||'—'))+'</span><span>DT dân khai</span><span>'+(t.dt_khai?fmt(t.dt_khai)+' m²':'—')+'</span><span>Vị trí</span><span>'+esc(t.vitri||'—')+'</span><span>Đã đếm</span><span>'+n+' mục</span></div>'+
+ '<button class="btn pri" onclick="startKD()">'+(n?'Tiếp tục kiểm đếm':'Bắt đầu kiểm đếm')+'</button><button class="btn" onclick="formTam(\''+ma+'\')">Sửa thông tin thửa</button><button class="btn" onclick="openTam()">Quay lại</button>')}
+// ===== Chủ trì: gom đủ số liệu các tổ & gửi về máy tính =====
+function gomKQ(j){for(const r of (j.muc||[])){const o=ALLR[r.id];const t=r.sua||r.tg||'';if(!o||t>=(o.sua||o.tg||'')){const c={...r};delete c.sent;ALLR[r.id]=c}}
+ for(const t of (j.tam||[])){const o=ALLTAM[t.ma];if(!o||(t.sua||t.tg||'')>=(o.sua||o.tg||''))ALLTAM[t.ma]=t}
+ for(const k of (j.xong||[])){ALLR['__xong__'+k]={xoa:true,k,xong:true,to_kd:j.to_kd}}}
+function tongFile(){const M={};for(const r of Object.values(ALLR))if(!r.xong)M[r.id]=r;for(const r of RECS){const o=M[r.id];if(!o||(r.sua||r.tg||'')>=(o.sua||o.tg||'')){const c={...r};delete c.sent;M[r.id]=c}}
+ const T={...ALLTAM};for(const t of TAM)T[t.ma]=t;const X={};for(const r of Object.values(ALLR))if(r.xong)(X[r.to_kd]=X[r.to_kd]||[]).push(r.k);if(SET.to)X[SET.to]=Object.keys(SET.xong||{});
+ const to=new Set(Object.values(M).map(r=>r.to_kd));
+ const out={loai:'MRIN_KQ_KIEMDEM',phienban:2,tong_hop:true,duan:PKG?PKG.duan:'',goi:PKG?PKG.ngay:'',to_kd:'TỔNG HỢP',cac_to:[...to],nguoi:SET.nguoi,xuat_luc:new Date().toISOString(),xong:[...new Set([].concat(...Object.values(X)))],xong_to:X,tam:Object.values(T),muc:Object.values(M)};
+ return new File([JSON.stringify(out)],'KD_TONG_'+tsName()+'.json',{type:'application/json'})}
+async function guiMayTinh(mode){const f=tongFile();if(mode==='share'){if(await shareFiles([f],f.name))toast('Đã gửi file tổng hợp — nhớ chọn thư mục 2_KET_QUA_KIEM_DEM trên Drive',4500)}
+ else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();a.remove();toast('Đã lưu '+f.name,3500)}}
+
 // ===== Bàn phím số =====
 $('pad').innerHTML=['1','2','3','4','5','6','7','8','9',',','0','⌫'].map(k=>'<button onclick="padKey(\''+k+'\')">'+k+'</button>').join('');
 
 // ===== Khởi động =====
 (async()=>{initMap();
- try{await DB.open();SET=Object.assign(SET,await DB.get('set')||{});OTHER=await DB.get('other')||{};RECS=await DB.all('rec');PKG=await DB.get('pkg')||null}catch(e){toast('Máy không cho lưu dữ liệu — hãy mở bằng Chrome/Safari thường (không ẩn danh)',5000)}
+ try{await DB.open();SET=Object.assign(SET,await DB.get('set')||{});OTHER=await DB.get('other')||{};TAM=await DB.get('tam')||[];ALLR=await DB.get('allr')||{};ALLTAM=await DB.get('alltam')||{};RECS=await DB.all('rec');PKG=await DB.get('pkg')||null}catch(e){toast('Máy không cho lưu dữ liệu — hãy mở bằng Chrome/Safari thường (không ẩn danh)',5000)}
  if(PKG)drawPkg();else{status();setTimeout(()=>{openMenu();toast('Bước đầu: đặt tên tổ và nhập mã dự án',4000)},400)}
  if(SET.ma)setTimeout(()=>syncPkg(false),1500);
  // tự kiểm tra dữ liệu mới: khi có mạng trở lại, khi mở lại app, và 30 phút/lần
